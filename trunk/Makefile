@@ -3,7 +3,10 @@ CC := $(shell which gcc)
 LIBS := fuse 
 
 
-SRC := src/mossofs.c
+SRC := src/mossofs.c \
+       src/salloc.c \
+       src/simple_curl.c \
+       src/mosso.c
 
 CFLAGS := $(shell pkg-config --cflags $(LIBS)) \
 		  $(shell curl-config --cflags) \
