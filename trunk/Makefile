@@ -1,15 +1,16 @@
 CC := $(shell which gcc)
 
-LIBS := fuse \
-		libcurl
+LIBS := fuse 
 
 
 SRC := src/mossofs.c
 
 CFLAGS := $(shell pkg-config --cflags $(LIBS)) \
+		  $(shell curl-config --cflags) \
 		  -DFUSE_USE_VERSION=22
 
-LDFLAGS := $(shell pkg-config --libs $(LIBS))
+LDFLAGS := $(shell pkg-config --libs $(LIBS)) \
+		   $(shell curl-config --libs)
 
 all: mossofs
 
