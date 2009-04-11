@@ -32,6 +32,7 @@ typedef struct
 {
     char* username;
     char* key;
+    char* storage_token;
     char* auth_token;
     char* storage_url;
     char* cdn_management_url;

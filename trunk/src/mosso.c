@@ -29,8 +29,8 @@
 #include "salloc.h"
 
 static char* error_string = NULL;
-
 #define set_error(e, ...) (((error_string != NULL) ? free(error_string) : NULL), asprintf( &error_string, e, ##__VA_ARGS__ ))
+char* mosso_error() { return error_string; }
 
 /**
  * Authenticate with the mosso service
@@ -52,6 +52,8 @@ static void mosso_authenticate( mosso_connection_t** mosso )
 
     if ( ( response_code = simple_curl_request_complex( SIMPLE_CURL_GET, "https://api.mosso.com/auth", &response_body, &response_headers, NULL, request_headers ) ) != 204 ) 
     {
+        // Mosso responded with something different than a 204. This indicates
+        // an error.
         set_error( "Statuscode: %ld, Response: %s", response_code, response_body );
         mosso_cleanup( (*mosso) );
         free( response_body );
@@ -61,38 +63,63 @@ static void mosso_authenticate( mosso_connection_t** mosso )
         return;
     }
 
+    // Free the request headers as they are not needed any longer.
     simple_curl_header_free_all( request_headers );
-    
-    {
-        simple_curl_header_t* cur = response_headers;
-        while( cur != NULL ) 
-        {
-            printf( "Key: %s, Value: %s\n", cur->key, cur->value );
-            cur = cur->next;
-        }
-    }
-
-    printf( "\nBody:\n%s\n", response_body );
+    // The reponse body is supposed to be an empty string at this moment.
+    // Therefore it is not needed any more.
     free( response_body );
+
+    // Fillup the mosso_connection structure with the retrieved informations
+    (*mosso)->storage_token      = strdup( simple_curl_header_get_by_key( response_headers, "X-Storage-Token" ) );
+    (*mosso)->auth_token         = strdup( simple_curl_header_get_by_key( response_headers, "X-Auth-Token" ) );
+    (*mosso)->storage_url        = strdup( simple_curl_header_get_by_key( response_headers, "X-Storage-Url" ) );
+    (*mosso)->cdn_management_url = strdup( simple_curl_header_get_by_key( response_headers, "X-CDN-Management-Url" ) );
+
+    // The required information has been copied. Therefore the retrieved
+    // headers are not needed any longer.
     simple_curl_header_free_all( response_headers );
 }
 
 
+/**
+ * Initialize a new connection to the mosso cloudspace
+ *
+ * Authentication is automatically done upon calling this function.
+ *
+ * A valid mosso username as well as a valid API key is needed to fulfill the
+ * init request.
+ */
 mosso_connection_t* mosso_init( char* username, char* key ) 
 {
     mosso_connection_t* mosso = smalloc( sizeof( mosso_connection_t ) );
     mosso->username = strdup( username );
     mosso->key      = strdup( key );
     mosso_authenticate( &mosso );
+    
+    // DEBUG
+    printf( 
+        "username: %s\nkey: %s\nstorage_token: %s\nauth_token: %s\nstorage_url: %s\ncdn_management_url: %s\n",
+        mosso->username,
+        mosso->key,
+        mosso->storage_token,
+        mosso->auth_token,
+        mosso->storage_url,
+        mosso->cdn_management_url
+    );
+
     return mosso;
 }
 
+/**
+ * Free a given mosso connection structure
+ */
 void mosso_cleanup( mosso_connection_t* mosso ) 
 {
     if ( mosso != NULL ) 
     {
         ( mosso->username != NULL )           ? free( mosso->username )           : NULL;
         ( mosso->key != NULL )                ? free( mosso->key )                : NULL;
+        ( mosso->storage_token != NULL )      ? free( mosso->storage_token )      : NULL;
         ( mosso->auth_token != NULL )         ? free( mosso->auth_token )         : NULL;
         ( mosso->storage_url != NULL )        ? free( mosso->storage_url )        : NULL;
         ( mosso->cdn_management_url != NULL ) ? free( mosso->cdn_management_url ) : NULL;
@@ -100,7 +127,3 @@ void mosso_cleanup( mosso_connection_t* mosso )
     }
 }
 
-char* mosso_error() 
-{
-    return error_string;
-}
