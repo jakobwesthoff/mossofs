@@ -90,7 +90,7 @@ static void mosso_authenticate( mosso_connection_t** mosso )
 
     
     {
-        simple_curl_receive_header_t* cur = header->ptr->root;
+        simple_curl_header_t* cur = header->ptr->root;
         while( cur != NULL ) 
         {
             char* key = smalloc( strlen( cur->ptr ) + 1 );

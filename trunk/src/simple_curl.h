@@ -41,12 +41,12 @@ typedef struct
  * root always points to the root element of the list to allow simple traversal
  * idenpendent of the given element.
  */
-typedef struct simple_curl_receive_header
+typedef struct simple_curl_header
 {
     char* ptr;
-    struct simple_curl_receive_header* next;
-    struct simple_curl_receive_header* root;
-} simple_curl_receive_header_t;
+    struct simple_curl_header* next;
+    struct simple_curl_header* root;
+} simple_curl_header_t;
 
 /**
  * Stream used to transport all the needed data between different write_header
@@ -54,7 +54,7 @@ typedef struct simple_curl_receive_header
  */
 typedef struct 
 {
-    simple_curl_receive_header_t* ptr;
+    simple_curl_header_t* ptr;
     int length;
 } simple_curl_receive_header_stream_t;
 

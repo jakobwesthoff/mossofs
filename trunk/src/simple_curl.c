@@ -26,8 +26,8 @@
 
 #include "simple_curl.h"
 
-static simple_curl_receive_header_t* simple_curl_receive_header_add( simple_curl_receive_header_t* header, void* data, size_t size );
-static void simple_curl_receive_header_free_all( simple_curl_receive_header_t* header );
+static simple_curl_header_t* simple_curl_header_add( simple_curl_header_t* header, char* data, size_t size );
+static void simple_curl_header_free_all( simple_curl_header_t* header );
 
 /**
  * Callback function for cURL called every time new data has arrived
@@ -57,7 +57,7 @@ size_t simple_curl_write_body( void *ptr, size_t size, size_t nmemb, void *strea
 size_t simple_curl_write_header( void *ptr, size_t size, size_t nmemb, void *stream ) 
 {
     simple_curl_receive_header_stream_t* header_stream = ( simple_curl_receive_header_stream_t* )stream;
-    header_stream->ptr = simple_curl_receive_header_add( header_stream->ptr, ptr, size * nmemb );
+    header_stream->ptr = simple_curl_header_add( header_stream->ptr, (char*)ptr, size * nmemb );
     ++(header_stream->length);
     return size * nmemb;
 }
@@ -117,7 +117,7 @@ void simple_curl_receive_header_stream_free( simple_curl_receive_header_stream_t
 {
     if ( stream != NULL ) 
     {
-        (stream->ptr != NULL) ? simple_curl_receive_header_free_all( stream->ptr ) : NULL;
+        (stream->ptr != NULL) ? simple_curl_header_free_all( stream->ptr ) : NULL;
         free( stream );
     }
 }
@@ -137,11 +137,19 @@ void simple_curl_receive_header_stream_free( simple_curl_receive_header_stream_t
  * The supplied data string is copyied and stored.
  * simple_curl_receive_header_free_all needs to be called to free the space
  * occupied.
+ *
+ * If size is 0 data is assumed to be a null-terminated string. 
  */
-static simple_curl_receive_header_t* simple_curl_receive_header_add( simple_curl_receive_header_t* header, void* data, size_t size ) 
+static simple_curl_header_t* simple_curl_header_add( simple_curl_header_t* header, char* data, size_t size ) 
 {
+    // Calculate size if it is not given
+    if ( size == 0 ) 
+    {
+        size = strlen( data );
+    }
+
     // Initialize a new header entry
-    simple_curl_receive_header_t* new_header = (simple_curl_receive_header_t*)smalloc( sizeof( simple_curl_receive_header_t ) );
+    simple_curl_header_t* new_header = (simple_curl_header_t*)smalloc( sizeof( simple_curl_header_t ) );
     // Copy the data to it
     new_header->ptr = (char*)smalloc( size + 1 );
     memcpy( new_header->ptr, data, size );
@@ -169,14 +177,14 @@ static simple_curl_receive_header_t* simple_curl_receive_header_add( simple_curl
  * list. The list structure itself as well as allocated strings inside are
  * freed.
  */
-static void simple_curl_receive_header_free_all( simple_curl_receive_header_t* header ) 
+static void simple_curl_header_free_all( simple_curl_header_t* header ) 
 {
     if ( header != NULL ) 
     {
-        simple_curl_receive_header_t* next = header->root;
+        simple_curl_header_t* next = header->root;
         while( next != NULL ) 
         {
-            simple_curl_receive_header_t* cur = next;
+            simple_curl_header_t* cur = next;
             next = next->next;
             free( cur->ptr );
             free( cur );
