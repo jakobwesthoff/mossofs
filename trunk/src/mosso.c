@@ -32,6 +32,12 @@ static char* error_string = NULL;
 #define set_error(e, ...) (((error_string != NULL) ? free(error_string) : NULL), asprintf( &error_string, e, ##__VA_ARGS__ ))
 char* mosso_error() { return error_string; }
 
+
+static void mosso_authenticate( mosso_connection_t** mosso ); 
+static mosso_object_t* mosso_create_object_list_from_response_body( mosso_object_t* object, char* response_body, char* path_prefix, int type, int* num );
+static mosso_object_t* mosso_object_add( mosso_object_t* object, char* name, char* request_path, int type );
+
+
 /**
  * Authenticate with the mosso service
  *
@@ -81,7 +87,7 @@ static void mosso_authenticate( mosso_connection_t** mosso )
 
     // Create a simple_curl header structure to be simply provided for each
     // following mosso call to be correctly authenticated.
-    simple_curl_header_add( (*mosso)->auth_headers, "X-Auth-Token", (*mosso)->auth_token );
+    (*mosso)->auth_headers = simple_curl_header_add( (*mosso)->auth_headers, "X-Auth-Token", (*mosso)->auth_token );
 }
 
 
@@ -112,6 +118,176 @@ mosso_connection_t* mosso_init( char* username, char* key )
     );
 
     return mosso;
+}
+
+/**
+ * Add a new entry to a mosso object linked list
+ *
+ * The provided list item has always to be the last one in the list.
+ *
+ * If null is given as initial list item, a new list will be created.
+ */
+static mosso_object_t* mosso_object_add( mosso_object_t* object, char* name, char* request_path, int type ) 
+{
+    // Initialize a new object entry
+    mosso_object_t* new_object = (mosso_object_t*)smalloc( sizeof( mosso_object_t ) );
+
+    // Copy the data to it
+    new_object->type         = type;
+    new_object->name         = strdup( name );
+    new_object->request_path = strdup( request_path );
+
+    // Set the root and next accordingly
+    new_object->next = NULL;
+    if ( object == NULL ) 
+    {
+        // This was an initialization the newly created object is root
+        new_object->root = new_object;
+    }
+    else 
+    {
+        new_object->root = object->root;
+        object->next = new_object;
+    }
+    
+    return new_object;
+}
+
+/**
+ * Free all objects inside a given mosso object list.
+ *
+ * Internally stored and allocated strings will be freed as well.
+ */
+void mosso_object_free_all( mosso_object_t* object ) 
+{
+    mosso_object_t* cur = object->root;
+    while ( cur != NULL ) 
+    {
+        mosso_object_t* next = cur->next;
+        (cur->name != NULL)         ? free( cur->name )         : NULL;
+        (cur->request_path != NULL) ? free( cur->request_path ) : NULL;
+        free( cur );
+        cur = next;
+    }
+}
+
+/**
+ * Split a given object list repsonse body into a list of object structs.
+ *
+ * The data will be appended to the given list of objects. If NULL is provided
+ * a new list will be started.
+ *
+ * The num parameter is filled with the number of object entries created.
+ */
+static mosso_object_t* mosso_create_object_list_from_response_body( mosso_object_t* object, char* response_body, char* path_prefix, int type, int* num ) 
+{
+    int   num_objects = 0;
+    char* cur         = response_body;
+
+    while( TRUE ) 
+    {
+        char* request_path = NULL;
+        char* name         = NULL;
+        char* start = cur;
+        char* end   = cur;
+
+        // Find the next newline or null terminator
+        while( *end != '\n' && *end != 0 )  { ++end; }
+
+        // Allocate some space for the new name and copy it to the target
+        name = (char*)smalloc( sizeof( char ) * ( end - start + 1 ) );
+        memcpy( name, start, end - start );
+
+        // Create the needed request path
+        asprintf( &request_path, "%s%s", path_prefix, name );
+
+        // Add entry to the list
+        object = mosso_object_add( object, name, request_path, type );
+        ++num_objects;
+
+        // Free all the temporary created strings
+        free( name );
+        free( request_path );
+
+        if ( *end == 0 || *(end+1) == 0 ) /* Stop char or next start char is 0 stop here */ 
+        {
+            // The response_body has been completely analysed
+            break;
+        }
+        else 
+        {
+            // Advance to the next run
+            cur = end + 1;
+        }
+    }
+
+    *num = num_objects;
+    return object;
+}
+
+/**
+ * Retrieve a list of available containers from the mosso service.
+ *
+ * The returned object will be a linked list of objects.
+ * 
+ * If an error occured NULL will be returned and the error string will be set
+ * accordingly.
+ */
+mosso_object_t* mosso_list_containers( mosso_connection_t* mosso ) 
+{
+    char* response_body    = NULL;
+    int   response_code    = 0;
+    mosso_object_t* object = NULL;
+    int   num_objects      = 0;    
+
+    while( TRUE ) 
+    {
+        char* request_url = NULL;
+        if ( object == NULL ) 
+        {
+            // First request no marker needed
+            request_url = strdup( mosso->storage_url );
+        }
+        else 
+        {
+            // We have fired a request before, therefore a marker needs to be
+            // set.
+            char* escaped_marker = curl_escape( object->name, 0 );
+            asprintf( &request_url, "%s?marker=%s", mosso->storage_url, escaped_marker );
+            curl_free( escaped_marker );
+        }
+
+        if ( ( response_code = simple_curl_request_complex( SIMPLE_CURL_GET, request_url, &response_body, NULL, NULL, mosso->auth_headers ) ) != 200 ) 
+        {
+            if ( response_code == 204 ) 
+            {
+                set_error( "No containers found." );
+            }
+            else 
+            {
+                set_error( "Statuscode: %ld, Response: %s", response_code, response_body );
+            }
+
+            free( response_body );
+            free( request_url );
+            return NULL;
+        }
+        free( request_url );
+
+        object = mosso_create_object_list_from_response_body( object, response_body, "/", MOSSO_OBJECT_TYPE_CONTAINER, &num_objects );
+
+        free( response_body );
+
+        if ( num_objects < 10000 ) 
+        {
+            // Objects are retrieved in chunks of 10000 objects max. Therefore
+            // if the retrieved object count is lower than this the transfer is
+            // finished.
+            break;
+        }
+    };
+    
+    return object;
 }
 
 /**

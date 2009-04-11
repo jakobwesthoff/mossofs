@@ -98,7 +98,7 @@ static size_t simple_curl_write_header( void *ptr, size_t size, size_t nmemb, vo
     // Using a simple regex the header is splitted into a key value pair.
     memset( &matches, 0, 4 * sizeof( regmatch_t ) );
     
-    if ( ( error = regcomp( &re, "^([^:]+): (.*)$", REG_EXTENDED | REG_ICASE | REG_NEWLINE ) ) != 0 ) 
+    if ( ( error = regcomp( &re, "^([^:]+): ([^\r\n]*)[\r\n]*$", REG_EXTENDED | REG_ICASE | REG_NEWLINE ) ) != 0 ) 
     {
         // An error occured during the compile of the regex.
         // This should never happen. But if it does we simply skip this
@@ -128,7 +128,7 @@ static size_t simple_curl_write_header( void *ptr, size_t size, size_t nmemb, vo
         // Copy the matched strings to their new homes
         memcpy( key,   source + matches[1].rm_so, matches[1].rm_eo - matches[1].rm_so );
         memcpy( value, source + matches[2].rm_so, matches[2].rm_eo - matches[2].rm_so );
-        
+
         // Store key value strings in the struct and free the temporary
         // strings.
         header_stream->ptr = simple_curl_header_add( header_stream->ptr, key, value );

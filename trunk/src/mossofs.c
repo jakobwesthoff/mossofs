@@ -96,6 +96,27 @@ int main( int argc, char **argv )
         exit( 2 );
     }
 
+    {
+        mosso_object_t* object = NULL;
+        mosso_object_t* cur    = NULL;
+        
+        if ( ( object = mosso_list_containers( mosso ) ) == NULL ) 
+        {
+            printf( "Container listing failed: %s\n", mosso_error() );
+            curl_global_cleanup();
+            exit( 2 );
+        }
+        cur = object->root;
+
+        while( cur != NULL ) 
+        {
+            printf( "Name: %s, RequestPath: %s\n", cur->name, cur->request_path );
+            cur = cur->next;
+        }
+        mosso_object_free_all( object );
+    }
+
+    mosso_cleanup( mosso );
 
 
     // argv + optind
