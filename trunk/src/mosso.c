@@ -93,12 +93,7 @@ static void mosso_authenticate( mosso_connection_t** mosso )
         simple_curl_header_t* cur = header->ptr->root;
         while( cur != NULL ) 
         {
-            char* key = smalloc( strlen( cur->ptr ) + 1 );
-            char* value = smalloc( strlen( cur->ptr ) + 1 );
-            sscanf( cur->ptr, "%s %s", key, value );
-            printf( "Key: %s, Value: %s\n", key, value );
-            free( key );
-            free( value );
+            printf( "Key: %s, Value: %s\n", cur->key, cur->value );
             cur = cur->next;
         }
     }

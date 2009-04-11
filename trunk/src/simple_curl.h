@@ -43,7 +43,8 @@ typedef struct
  */
 typedef struct simple_curl_header
 {
-    char* ptr;
+    char* key;
+    char* value;
     struct simple_curl_header* next;
     struct simple_curl_header* root;
 } simple_curl_header_t;

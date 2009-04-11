@@ -22,11 +22,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <regex.h>
 #include <curl/curl.h>
 
 #include "simple_curl.h"
 
-static simple_curl_header_t* simple_curl_header_add( simple_curl_header_t* header, char* data, size_t size );
+static simple_curl_header_t* simple_curl_header_add( simple_curl_header_t* header, char* key, char* value );
 static void simple_curl_header_free_all( simple_curl_header_t* header );
 
 /**
@@ -56,8 +57,51 @@ size_t simple_curl_write_body( void *ptr, size_t size, size_t nmemb, void *strea
  */
 size_t simple_curl_write_header( void *ptr, size_t size, size_t nmemb, void *stream ) 
 {
-    simple_curl_receive_header_stream_t* header_stream = ( simple_curl_receive_header_stream_t* )stream;
-    header_stream->ptr = simple_curl_header_add( header_stream->ptr, (char*)ptr, size * nmemb );
+    regex_t re;
+    regmatch_t matches[4];
+    int error = 0;
+
+    simple_curl_receive_header_stream_t* header_stream = ( simple_curl_receive_header_stream_t* )stream;    
+
+    // Using a simple regex the header is splitted into a key value pair.
+    memset( &matches, 0, 4 * sizeof( regmatch_t ) );
+    
+    if ( ( error = regcomp( &re, "^([^:]+): (.*)$", REG_EXTENDED | REG_ICASE | REG_NEWLINE ) ) != 0 ) 
+    {
+        // An error occured during the compile of the regex.
+        // This should never happen. But if it does we simply skip this
+        // header extraction call
+        return size*nmemb;
+    }
+    
+    // Create a null terminated string based on the data given by curl and
+    // match it against the regex
+    {
+        char* key    = NULL;
+        char* value  = NULL;
+        char* source = (char*)smalloc( (size*nmemb) + 1 );
+        memcpy( source, ptr, size*nmemb );
+        
+        if ( ( error = regexec( &re, source, 3, matches, 0 ) ) != 0 ) 
+        {
+            // Match failed. Just skip the given line.
+            return size*nmemb;
+        }
+
+        // Allocate the strings needed to hold subexpression 1 and 2 ( Our
+        // key / value pair )
+        key   = (char*)smalloc( sizeof( char ) * ( matches[1].rm_eo - matches[1].rm_so + 1 ) );
+        value = (char*)smalloc( sizeof( char ) * ( matches[2].rm_eo - matches[2].rm_so + 1 ) );
+
+        // Copy the matched strings to their new homes
+        memcpy( key,   source + matches[1].rm_so, matches[1].rm_eo - matches[1].rm_so );
+        memcpy( value, source + matches[2].rm_so, matches[2].rm_eo - matches[2].rm_so );
+        
+        // Store key value strings in the struct and free the temporary
+        // strings.
+        header_stream->ptr = simple_curl_header_add( header_stream->ptr, key, value );
+    }
+
     ++(header_stream->length);
     return size * nmemb;
 }
@@ -125,8 +169,8 @@ void simple_curl_receive_header_stream_free( simple_curl_receive_header_stream_t
 /**
  * Add a new header entry to a header linked list
  *
- * A new header string is added to supplied linked list of already available
- * headers. 
+ * A new header key value pair is added to supplied linked list of already
+ * available headers. 
  *
  * The provided header element has to be the last element of the current linked
  * list or NULL in which case a new list is created.
@@ -134,25 +178,19 @@ void simple_curl_receive_header_stream_free( simple_curl_receive_header_stream_t
  * The newly created last linked list element will be returned. This element
  * needs to be supplied on the next call to this function.
  *
- * The supplied data string is copyied and stored.
- * simple_curl_receive_header_free_all needs to be called to free the space
- * occupied.
+ * The supplied key value pair need to be null-terminated strings, which will
+ * be copied for storage.
  *
- * If size is 0 data is assumed to be a null-terminated string. 
+ * simple_curl_header_free_all needs to be called to free the occupied data.
  */
-static simple_curl_header_t* simple_curl_header_add( simple_curl_header_t* header, char* data, size_t size ) 
+static simple_curl_header_t* simple_curl_header_add( simple_curl_header_t* header, char* key, char* value ) 
 {
-    // Calculate size if it is not given
-    if ( size == 0 ) 
-    {
-        size = strlen( data );
-    }
-
     // Initialize a new header entry
     simple_curl_header_t* new_header = (simple_curl_header_t*)smalloc( sizeof( simple_curl_header_t ) );
+
     // Copy the data to it
-    new_header->ptr = (char*)smalloc( size + 1 );
-    memcpy( new_header->ptr, data, size );
+    new_header->key   = strdup( key );
+    new_header->value = strdup( value );
 
     // Set the root and next accordingly
     new_header->next = NULL;
@@ -186,7 +224,8 @@ static void simple_curl_header_free_all( simple_curl_header_t* header )
         {
             simple_curl_header_t* cur = next;
             next = next->next;
-            free( cur->ptr );
+            free( cur->key );
+            free( cur->value );
             free( cur );
         }
     }
