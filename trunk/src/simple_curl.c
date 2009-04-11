@@ -254,6 +254,26 @@ simple_curl_header_t* simple_curl_header_add( simple_curl_header_t* header, char
 }
 
 /**
+ * Retrieve a header value by a given key from a header list
+ *
+ * If the key does not exist in the list NULL is returned instead of the
+ * corresponding string.
+ */
+char* simple_curl_header_get_by_key( simple_curl_header_t* headers, char* key ) 
+{
+    simple_curl_header_t* cur = headers->root;
+    while( cur != NULL ) 
+    {
+        if ( strcmp( cur->key, key ) == 0 ) 
+        {
+            return cur->value;
+        }
+        cur = cur->next;
+    }
+    return NULL;
+}
+
+/**
  * Free a header linked list
  *
  * This function frees a complete linked list, given any element inside the
