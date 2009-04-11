@@ -29,6 +29,12 @@
 static simple_curl_receive_header_t* simple_curl_receive_header_add( simple_curl_receive_header_t* header, void* data, size_t size );
 static void simple_curl_receive_header_free_all( simple_curl_receive_header_t* header );
 
+/**
+ * Callback function for cURL called every time new data has arrived
+ *
+ * This function is used internally for simple_curl calls to handle data
+ * retrieval of body data and store it to a dynamically allocated memory block.
+ */
 size_t simple_curl_write_body( void *ptr, size_t size, size_t nmemb, void *stream ) 
 {
     int new_length = 0;
@@ -40,6 +46,14 @@ size_t simple_curl_write_body( void *ptr, size_t size, size_t nmemb, void *strea
     return (size*nmemb);
 }
 
+/**
+ * Callback function for cURL called every time a new header line is received
+ *
+ * This function is used internally to store newly received headers to a linked
+ * list.
+ *
+ * cURL calls this callback method one for each new header line received.
+ */
 size_t simple_curl_write_header( void *ptr, size_t size, size_t nmemb, void *stream ) 
 {
     simple_curl_receive_header_stream_t* header_stream = ( simple_curl_receive_header_stream_t* )stream;
@@ -48,6 +62,12 @@ size_t simple_curl_write_header( void *ptr, size_t size, size_t nmemb, void *str
     return size * nmemb;
 }
 
+/**
+ * Initialize and return a new receive_body struct
+ *
+ * This struct which is capable of holding a char* pointer as data and the
+ * current length of the pointer used to manage reallocation properly.
+ */
 simple_curl_receive_body_t* simple_curl_receive_body_init() 
 {
     simple_curl_receive_body_t* body = (simple_curl_receive_body_t*)smalloc( sizeof( simple_curl_receive_body_t ) );
@@ -57,6 +77,12 @@ simple_curl_receive_body_t* simple_curl_receive_body_init()
     return body;
 }
 
+/**
+ * Free a receive body struct
+ *
+ * The struct itself as well as the internally managed string is freed upon
+ * calling this.
+ */
 void simple_curl_receive_body_free( simple_curl_receive_body_t* body ) 
 {
     if ( body != NULL ) 
@@ -66,6 +92,12 @@ void simple_curl_receive_body_free( simple_curl_receive_body_t* body )
     }
 }
 
+/**
+ * Initialize a new header_stream.
+ *
+ * The header stream struct is used to store a pointer to the last linked list
+ * elements of headers as well as the number of header entries already stored.
+ */
 simple_curl_receive_header_stream_t* simple_curl_receive_header_stream_init() 
 {
     simple_curl_receive_header_stream_t* stream = (simple_curl_receive_header_stream_t*)smalloc( sizeof( simple_curl_receive_header_stream_t ) );
@@ -74,6 +106,13 @@ simple_curl_receive_header_stream_t* simple_curl_receive_header_stream_init()
     return stream;
 }
 
+/**
+ * Free a header_stream
+ *
+ * Free a header stream struct including the linked list inside it storing the
+ * header information. Every linked list element including all its data will be
+ * freed as well.
+ */
 void simple_curl_receive_header_stream_free( simple_curl_receive_header_stream_t* stream ) 
 {
     if ( stream != NULL ) 
@@ -83,6 +122,22 @@ void simple_curl_receive_header_stream_free( simple_curl_receive_header_stream_t
     }
 }
 
+/**
+ * Add a new header entry to a header linked list
+ *
+ * A new header string is added to supplied linked list of already available
+ * headers. 
+ *
+ * The provided header element has to be the last element of the current linked
+ * list or NULL in which case a new list is created.
+ *
+ * The newly created last linked list element will be returned. This element
+ * needs to be supplied on the next call to this function.
+ *
+ * The supplied data string is copyied and stored.
+ * simple_curl_receive_header_free_all needs to be called to free the space
+ * occupied.
+ */
 static simple_curl_receive_header_t* simple_curl_receive_header_add( simple_curl_receive_header_t* header, void* data, size_t size ) 
 {
     // Initialize a new header entry
@@ -107,6 +162,13 @@ static simple_curl_receive_header_t* simple_curl_receive_header_add( simple_curl
     return new_header;
 }
 
+/**
+ * Free a header linked list
+ *
+ * This function frees a complete linked list, given any element inside the
+ * list. The list structure itself as well as allocated strings inside are
+ * freed.
+ */
 static void simple_curl_receive_header_free_all( simple_curl_receive_header_t* header ) 
 {
     if ( header != NULL ) 
