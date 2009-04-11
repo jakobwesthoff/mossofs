@@ -42,55 +42,29 @@ static char* error_string = NULL;
  */
 static void mosso_authenticate( mosso_connection_t** mosso ) 
 {
-    CURL* ch = NULL;
-    struct curl_slist *headers = NULL;
-    simple_curl_receive_body_t* body            = simple_curl_receive_body_init();
-    simple_curl_receive_header_stream_t* header = simple_curl_receive_header_stream_init();
+    simple_curl_header_t* request_headers  = NULL;
+    char* response_body                    = NULL;
+    simple_curl_header_t* response_headers = NULL;
+    long response_code = 0L;
 
-    ch = curl_easy_init();
-    curl_easy_setopt( ch, CURLOPT_URL, "https://api.mosso.com/auth" );    
+    request_headers = simple_curl_header_add( request_headers, "X-Auth-User", (*mosso)->username );
+    request_headers = simple_curl_header_add( request_headers, "X-Auth-Key", (*mosso)->key );
+
+    if ( ( response_code = simple_curl_request_complex( SIMPLE_CURL_GET, "https://api.mosso.com/auth", &response_body, &response_headers, NULL, request_headers ) ) != 204 ) 
     {
-        char *header;
-        asprintf( &header, "X-Auth-User: %s", (*mosso)->username );
-        headers = curl_slist_append( headers, header );
-        free( header );
-    }
-    {
-        char *header;
-        asprintf( &header, "X-Auth-Key: %s", (*mosso)->key );
-        headers = curl_slist_append( headers, header );
-        free( header );
+        set_error( "Statuscode: %ld, Response: %s", response_code, response_body );
+        mosso_cleanup( (*mosso) );
+        free( response_body );
+        simple_curl_header_free_all( request_headers );
+        simple_curl_header_free_all( response_headers );
+        (*mosso) = NULL;
+        return;
     }
 
-    curl_easy_setopt( ch, CURLOPT_HTTPHEADER, headers );
-
-    curl_easy_setopt( ch, CURLOPT_WRITEFUNCTION, simple_curl_write_body );
-    curl_easy_setopt( ch, CURLOPT_WRITEDATA, (void*)body );
-    curl_easy_setopt( ch, CURLOPT_HEADERFUNCTION, simple_curl_write_header );
-    curl_easy_setopt( ch, CURLOPT_HEADERDATA, (void*)header );
-
-    curl_easy_perform( ch );
-
-    {
-        long code = 0L;
-        curl_easy_getinfo( ch, CURLINFO_RESPONSE_CODE, &code );
-        if ( code != 204 ) 
-        {            
-            set_error( "Statuscode: %ld, Response: %s", code, body->ptr );
-            mosso_cleanup( (*mosso) );
-            simple_curl_receive_body_free( body );
-            simple_curl_receive_header_stream_free( header );
-            (*mosso) = NULL;
-            return;
-        }
-    }
-    
-    curl_easy_cleanup( ch );
-    curl_slist_free_all( headers );
-
+    simple_curl_header_free_all( request_headers );
     
     {
-        simple_curl_header_t* cur = header->ptr->root;
+        simple_curl_header_t* cur = response_headers;
         while( cur != NULL ) 
         {
             printf( "Key: %s, Value: %s\n", cur->key, cur->value );
@@ -98,9 +72,9 @@ static void mosso_authenticate( mosso_connection_t** mosso )
         }
     }
 
-    printf( "\nBody:\n%s\n", body->ptr );
-    simple_curl_receive_body_free( body );
-    simple_curl_receive_header_stream_free( header );
+    printf( "\nBody:\n%s\n", response_body );
+    free( response_body );
+    simple_curl_header_free_all( response_headers );
 }
 
 

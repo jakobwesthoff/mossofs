@@ -22,16 +22,11 @@
  * Copyright (C) 2009 Jakob Westhoff <jakob@westhoffswelt.de>
  */
 
-/**
- * Structure holding all information needed to be transported between different
- * calls to the write_body function, to store all needed information of the
- * received body content.
- */
-typedef struct 
-{
-    char* ptr;
-    int length;
-} simple_curl_receive_body_t;
+#define SIMPLE_CURL_GET    0
+#define SIMPLE_CURL_HEAD   1
+#define SIMPLE_CURL_POST   2
+#define SIMPLE_CURL_PUT    3
+#define SIMPLE_CURL_DELETE 4
 
 /**
  * Linked list element to store header lines
@@ -49,22 +44,10 @@ typedef struct simple_curl_header
     struct simple_curl_header* root;
 } simple_curl_header_t;
 
-/**
- * Stream used to transport all the needed data between different write_header
- * calls
- */
-typedef struct 
-{
-    simple_curl_header_t* ptr;
-    int length;
-} simple_curl_receive_header_stream_t;
 
-
-size_t simple_curl_write_body( void *ptr, size_t size, size_t nmemb, void *stream );
-size_t simple_curl_write_header( void *ptr, size_t size, size_t nmemb, void *stream );
-simple_curl_receive_body_t* simple_curl_receive_body_init();
-void simple_curl_receive_body_free( simple_curl_receive_body_t* body );
-simple_curl_receive_header_stream_t* simple_curl_receive_header_stream_init();
-void simple_curl_receive_header_stream_free( simple_curl_receive_header_stream_t* stream );
+char* simple_curl_error();
+simple_curl_header_t* simple_curl_header_add( simple_curl_header_t* header, char* key, char* value );
+void simple_curl_header_free_all( simple_curl_header_t* header );
+long simple_curl_request_complex( int operation, char* url, char** response_body, simple_curl_header_t** response_header, char* request_body, simple_curl_header_t* request_headers );
 
 #endif
