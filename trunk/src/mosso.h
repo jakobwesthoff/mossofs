@@ -24,6 +24,8 @@
 
 #define _GNU_SOURCE
 
+#include "simple_curl.h"
+
 /**
  * Data structure to transport all mosso cloudspace connection related data
  * between different function calls.
@@ -36,6 +38,7 @@ typedef struct
     char* auth_token;
     char* storage_url;
     char* cdn_management_url;
+    simple_curl_header_t* auth_headers;
 } mosso_connection_t;
 
 

@@ -78,6 +78,10 @@ static void mosso_authenticate( mosso_connection_t** mosso )
     // The required information has been copied. Therefore the retrieved
     // headers are not needed any longer.
     simple_curl_header_free_all( response_headers );
+
+    // Create a simple_curl header structure to be simply provided for each
+    // following mosso call to be correctly authenticated.
+    simple_curl_header_add( (*mosso)->auth_headers, "X-Auth-Token", (*mosso)->auth_token );
 }
 
 
@@ -117,12 +121,13 @@ void mosso_cleanup( mosso_connection_t* mosso )
 {
     if ( mosso != NULL ) 
     {
-        ( mosso->username != NULL )           ? free( mosso->username )           : NULL;
-        ( mosso->key != NULL )                ? free( mosso->key )                : NULL;
-        ( mosso->storage_token != NULL )      ? free( mosso->storage_token )      : NULL;
-        ( mosso->auth_token != NULL )         ? free( mosso->auth_token )         : NULL;
-        ( mosso->storage_url != NULL )        ? free( mosso->storage_url )        : NULL;
-        ( mosso->cdn_management_url != NULL ) ? free( mosso->cdn_management_url ) : NULL;
+        ( mosso->username != NULL )           ? free( mosso->username )                            : NULL;
+        ( mosso->key != NULL )                ? free( mosso->key )                                 : NULL;
+        ( mosso->storage_token != NULL )      ? free( mosso->storage_token )                       : NULL;
+        ( mosso->auth_token != NULL )         ? free( mosso->auth_token )                          : NULL;
+        ( mosso->storage_url != NULL )        ? free( mosso->storage_url )                         : NULL;
+        ( mosso->cdn_management_url != NULL ) ? free( mosso->cdn_management_url )                  : NULL;
+        ( mosso->auth_headers != NULL )       ? simple_curl_header_free_all( mosso->auth_headers ) : NULL;
         free( mosso );
     }
 }
