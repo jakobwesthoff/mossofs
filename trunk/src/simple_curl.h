@@ -50,6 +50,17 @@ simple_curl_header_t* simple_curl_header_add( simple_curl_header_t* header, char
 char* simple_curl_header_get_by_key( simple_curl_header_t* headers, char* key );
 void simple_curl_header_free_all( simple_curl_header_t* header );
 char* simple_curl_urlencode( char* url, int size );
+
 long simple_curl_request_complex( int operation, char* url, char** response_body, simple_curl_header_t** response_header, char* request_body, simple_curl_header_t* request_headers );
+#define simple_curl_request_get( url, response_body, response_header, request_header ) \
+    simple_curl_request_complex( SIMPLE_CURL_GET, url, response_body, response_header, NULL, request_header )
+#define simple_curl_request_head( url, response_header, request_header ) \
+    simple_curl_request_complex( SIMPLE_CURL_HEAD, url, NULL, response_header, NULL, request_header )
+#define simple_curl_request_delete( url, response_header, request_header ) \
+    simple_curl_request_complex( SIMPLE_CURL_DELETE, url, NULL, response_header, NULL, request_header )
+#define simple_curl_request_put( url, response_body, response_header, request_body, request_header ) \
+    simple_curl_request_complex( SIMPLE_CURL_PUT, url, response_body, response_header, request_body, request_header )
+#define simple_curl_request_post( url, response_body, response_header, request_body, request_header ) \
+    simple_curl_request_complex( SIMPLE_CURL_POST, url, response_body, response_header, request_body, request_header )
 
 #endif
