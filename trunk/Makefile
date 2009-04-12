@@ -1,6 +1,6 @@
 CC := $(shell which gcc)
 
-LIBS := fuse 
+LIBS := fuse
 
 
 SRC := src/mossofs.c \
