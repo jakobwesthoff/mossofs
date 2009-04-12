@@ -297,6 +297,52 @@ void simple_curl_header_free_all( simple_curl_header_t* header )
 }
 
 /**
+ * Url encode a given string
+ *
+ * Only ASCII letters and digits will be returned unencoded. Everything else
+ * will be encoded using the %hexcode notation.
+ *
+ * Curls internal implementation seems to fail in some cases therefore this one
+ * is provided here.
+ *
+ * The returned string has to be freed, if it is not needed any longer.
+ */
+char* simple_curl_urlencode( char* url ) 
+{
+    char* hex_code = "0123456789abcdef";
+    
+    // For the initial space requirement assume the worst case, aka every char
+    // needs to be encoded. The string be reallocated after the encoding is
+    // complete to free the not space not needed.
+    char* result = (char*)smalloc( sizeof( char ) * ( ( strlen( url ) * 3 ) + 1 ) );
+
+    char* cur        = url;
+    char* cur_result = result;
+    
+    while( (*cur) != 0 ) 
+    {
+        if ( ( (*cur) >= 'a' && (*cur) <= 'z' )
+          || ( (*cur) >= 'A' && (*cur) <= 'Z' )
+          || ( (*cur) >= '0' && (*cur) <= '9' ) ) 
+        {
+            // ASCII letter or digit. Simple write out the given character.
+            *(cur_result++) = *cur;
+        }
+        else 
+        {
+            // Escaped character needs to be written.
+            *(cur_result++) = '%';
+            *(cur_result++) = hex_code[ (*cur) >> 4 ];
+            *(cur_result++) = hex_code[ (*cur) & 15 ];
+        }
+        ++cur;
+    }
+    // Reallocate the string to occupy only the needed space.
+    result = (char*)srealloc( result, sizeof( char ) * ( cur_result - result + 1 ) );
+    return result;
+}
+
+/**
  * Execute a curl request using the given information
  *
  * Operation and url are mandatory informations.

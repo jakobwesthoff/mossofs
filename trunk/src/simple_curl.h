@@ -49,6 +49,7 @@ char* simple_curl_error();
 simple_curl_header_t* simple_curl_header_add( simple_curl_header_t* header, char* key, char* value );
 char* simple_curl_header_get_by_key( simple_curl_header_t* headers, char* key );
 void simple_curl_header_free_all( simple_curl_header_t* header );
+char* simple_curl_urlencode( char* url );
 long simple_curl_request_complex( int operation, char* url, char** response_body, simple_curl_header_t** response_header, char* request_body, simple_curl_header_t* request_headers );
 
 #endif
