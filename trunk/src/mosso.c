@@ -262,7 +262,7 @@ static char* mosso_construct_request_url( mosso_connection_t* mosso, char* reque
     // Construct the correct path for the url
     {
         char* encoded_path = smalloc( sizeof( char ) );
-        int seen_slashes = 0;
+        int   seen_slashes = 0;
         char* start = request_path;
         char* end   = request_path;
 
@@ -273,7 +273,6 @@ static char* mosso_construct_request_url( mosso_connection_t* mosso, char* reque
             // Find the next / or string end
             while( (*end) != '/' && (*end) != 0 ) { ++end; }
             
-
             if ( end != start ) 
             {
                 encoded_part = simple_curl_urlencode( start, end - start );
@@ -294,8 +293,10 @@ static char* mosso_construct_request_url( mosso_connection_t* mosso, char* reque
                 start = ++end;
             }
 
-            // Handle the slash correctly
-            if ( seen_slashes == 0 )                
+            // Handle the first slash correctly 
+            // The initial slash is only appended if the string does not end
+            // after it.
+            if ( seen_slashes == 0 && (*end) != 0 )
             {
                 // Initial slash   
                 tmp = encoded_path;
