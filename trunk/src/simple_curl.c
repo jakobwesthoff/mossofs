@@ -302,24 +302,31 @@ void simple_curl_header_free_all( simple_curl_header_t* header )
  * Only ASCII letters and digits will be returned unencoded. Everything else
  * will be encoded using the %hexcode notation.
  *
+ * If size is set to 0 the string length is determined using strlen
+ *
  * Curls internal implementation seems to fail in some cases therefore this one
  * is provided here.
  *
  * The returned string has to be freed, if it is not needed any longer.
  */
-char* simple_curl_urlencode( char* url ) 
+char* simple_curl_urlencode( char* url, int size ) 
 {
     char* hex_code = "0123456789abcdef";
+
+    if ( size == 0 ) 
+    {
+        size = strlen( url );
+    }
     
     // For the initial space requirement assume the worst case, aka every char
     // needs to be encoded. The string be reallocated after the encoding is
     // complete to free the not space not needed.
-    char* result = (char*)smalloc( sizeof( char ) * ( ( strlen( url ) * 3 ) + 1 ) );
+    char* result = (char*)smalloc( sizeof( char ) * ( ( size * 3 ) + 1 ) );
 
     char* cur        = url;
     char* cur_result = result;
     
-    while( (*cur) != 0 ) 
+    while( cur - url < size ) 
     {
         if ( ( (*cur) >= 'a' && (*cur) <= 'z' )
           || ( (*cur) >= 'A' && (*cur) <= 'Z' )
