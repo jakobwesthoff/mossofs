@@ -34,7 +34,7 @@
 typedef struct
 {
     simple_curl_header_t* ptr;
-    int length;
+    long unsigned length;
 } simple_curl_receive_header_stream_t;
 
 /**
@@ -45,8 +45,19 @@ typedef struct
 typedef struct
 {
     char* ptr;
-    int length;
+    long long unsigned length;
 } simple_curl_receive_body_t;
+
+/**
+ * Data structure to store all neccessary informations to transmit data using
+ * the read function of curl.
+ */
+typedef struct
+{
+    char* ptr;
+    long long unsigned offset;
+    long long unsigned length;
+} simple_curl_request_body_t;
 
 
 static char* error_string = NULL;
@@ -60,6 +71,8 @@ static void simple_curl_receive_body_free( simple_curl_receive_body_t* body );
 static simple_curl_receive_header_stream_t* simple_curl_receive_header_stream_init();
 static void simple_curl_receive_header_stream_free( simple_curl_receive_header_stream_t* stream );
 static void simple_curl_prepare_curl_headers( simple_curl_header_t* headers, struct curl_slist** curl_headers );
+static simple_curl_request_body_t* simple_curl_request_body_init( char* data, long size );
+static void simple_curl_request_body_free( simple_curl_request_body_t* body );
 
 
 /**
@@ -70,7 +83,7 @@ static void simple_curl_prepare_curl_headers( simple_curl_header_t* headers, str
  */
 static size_t simple_curl_write_body( void *ptr, size_t size, size_t nmemb, void *stream )
 {
-    int new_length = 0;
+    long long unsigned int new_length = 0;
     simple_curl_receive_body_t* recv = (simple_curl_receive_body_t*)stream;
     recv->ptr = (char*)srealloc( recv->ptr, ( new_length = ( size * nmemb ) + recv->length ) + 1 );
     memset( recv->ptr + recv->length, 0, (  size * nmemb ) + 1 );
@@ -139,6 +152,23 @@ static size_t simple_curl_write_header( void *ptr, size_t size, size_t nmemb, vo
 }
 
 /**
+ * Callback function called by cURL every time reqest data which should be send
+ * need to be provided.
+ */
+static size_t simple_curl_read_body( void *ptr, size_t size, size_t nmemb, void *stream )
+{
+    long max_size = size * nmemb;
+    simple_curl_request_body_t* body = (simple_curl_request_body_t*)stream;
+    long remainder_size = ( body->length - body->offset );
+    long copy_size = ( max_size > remainder_size ) ? remainder_size : max_size;
+
+    memcpy( ptr, body->ptr + body->offset, copy_size );
+    body->offset += copy_size;
+
+    return copy_size;
+}
+
+/**
  * Initialize and return a new receive_body struct
  *
  * This struct which is capable of holding a char* pointer as data and the
@@ -147,7 +177,7 @@ static size_t simple_curl_write_header( void *ptr, size_t size, size_t nmemb, vo
 static simple_curl_receive_body_t* simple_curl_receive_body_init()
 {
     simple_curl_receive_body_t* body = (simple_curl_receive_body_t*)smalloc( sizeof( simple_curl_receive_body_t ) );
-    body->ptr = malloc( sizeof( char ) );
+    body->ptr = (char*)smalloc( sizeof( char ) );
     body->ptr[0] = 0;
     body->length = 0;
     return body;
@@ -456,4 +486,32 @@ long simple_curl_request_complex( int operation, char* url, char** response_body
     }
 
     return response_code;
+}
+
+/**
+ * Initialize a new request body
+ *
+ * The given data will be linked to the request body, not copied.
+ * If size is 0 the function will try to determine the length by using strlen.
+ *
+ * You need to free the data manually after destroying the request body.
+ */
+static simple_curl_request_body_t* simple_curl_request_body_init( char* data, long size )
+{
+    simple_curl_request_body_t* body = (simple_curl_request_body_t*)smalloc( sizeof( simple_curl_request_body_t ) );
+    body->ptr  = data;
+    body->length = ( size == 0 ) ? strlen( data ) : size;
+
+    return body;
+}
+
+/**
+ * Free the request body
+ *
+ * The assigned data structure will not be freed. You need to do this manually,
+ * if you do not need it any longer.
+ */
+static void simple_curl_request_body_free( simple_curl_request_body_t* body )
+{
+    free( body );
 }
