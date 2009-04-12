@@ -60,7 +60,7 @@ static void mosso_authenticate( mosso_connection_t** mosso )
     request_headers = simple_curl_header_add( request_headers, "X-Auth-User", (*mosso)->username );
     request_headers = simple_curl_header_add( request_headers, "X-Auth-Key", (*mosso)->key );
 
-    if ( ( response_code = simple_curl_request_complex( SIMPLE_CURL_GET, "https://api.mosso.com/auth", &response_body, &response_headers, NULL, request_headers ) ) != 204 )
+    if ( ( response_code = simple_curl_request_get( "https://api.mosso.com/auth", &response_body, &response_headers, request_headers ) ) != 204 )
     {
         // Mosso responded with something different than a 204. This indicates
         // an error.
@@ -441,7 +441,7 @@ mosso_object_t* mosso_list_objects( mosso_connection_t* mosso, char* request_pat
         printf( "Provided Path: %s\n", request_path );
         printf( "Requesting: %s\n", request_url );
 
-        if ( ( response_code = simple_curl_request_complex( SIMPLE_CURL_GET, request_url, &response_body, NULL, NULL, mosso->auth_headers ) ) != 200 )
+        if ( ( response_code = simple_curl_request_get( request_url, &response_body, NULL, mosso->auth_headers ) ) != 200 )
         {
             if ( response_code == 204 )
             {
