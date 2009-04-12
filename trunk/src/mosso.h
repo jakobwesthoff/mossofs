@@ -18,7 +18,7 @@
  * along with Mossofs; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301  USA
- *   
+ *
  * Copyright (C) 2009 Jakob Westhoff <jakob@westhoffswelt.de>
  */
 
@@ -32,7 +32,7 @@
  * Data structure to transport all mosso cloudspace connection related data
  * between different function calls.
  */
-typedef struct 
+typedef struct
 {
     char* username;
     char* key;

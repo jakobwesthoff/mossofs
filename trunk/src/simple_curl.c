@@ -15,7 +15,7 @@
  * along with Mossofs; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301  USA
- *   
+ *
  * Copyright (C) 2009 Jakob Westhoff <jakob@westhoffswelt.de>
  */
 
@@ -31,7 +31,7 @@
  * Stream used to transport all the needed data between different write_header
  * calls
  */
-typedef struct 
+typedef struct
 {
     simple_curl_header_t* ptr;
     int length;
@@ -42,7 +42,7 @@ typedef struct
  * calls to the write_body function, to store all needed information of the
  * received body content.
  */
-typedef struct 
+typedef struct
 {
     char* ptr;
     int length;
@@ -68,7 +68,7 @@ static void simple_curl_prepare_curl_headers( simple_curl_header_t* headers, str
  * This function is used internally for simple_curl calls to handle data
  * retrieval of body data and store it to a dynamically allocated memory block.
  */
-static size_t simple_curl_write_body( void *ptr, size_t size, size_t nmemb, void *stream ) 
+static size_t simple_curl_write_body( void *ptr, size_t size, size_t nmemb, void *stream )
 {
     int new_length = 0;
     simple_curl_receive_body_t* recv = (simple_curl_receive_body_t*)stream;
@@ -87,25 +87,25 @@ static size_t simple_curl_write_body( void *ptr, size_t size, size_t nmemb, void
  *
  * cURL calls this callback method one for each new header line received.
  */
-static size_t simple_curl_write_header( void *ptr, size_t size, size_t nmemb, void *stream ) 
+static size_t simple_curl_write_header( void *ptr, size_t size, size_t nmemb, void *stream )
 {
     regex_t re;
     regmatch_t matches[4];
     int error = 0;
 
-    simple_curl_receive_header_stream_t* header_stream = ( simple_curl_receive_header_stream_t* )stream;    
+    simple_curl_receive_header_stream_t* header_stream = ( simple_curl_receive_header_stream_t* )stream;
 
     // Using a simple regex the header is splitted into a key value pair.
     memset( &matches, 0, 4 * sizeof( regmatch_t ) );
-    
-    if ( ( error = regcomp( &re, "^([^:]+): ([^\r\n]*)[\r\n]*$", REG_EXTENDED | REG_ICASE | REG_NEWLINE ) ) != 0 ) 
+
+    if ( ( error = regcomp( &re, "^([^:]+): ([^\r\n]*)[\r\n]*$", REG_EXTENDED | REG_ICASE | REG_NEWLINE ) ) != 0 )
     {
         // An error occured during the compile of the regex.
         // This should never happen. But if it does we simply skip this
         // header extraction call
         return size*nmemb;
     }
-    
+
     // Create a null terminated string based on the data given by curl and
     // match it against the regex
     {
@@ -113,8 +113,8 @@ static size_t simple_curl_write_header( void *ptr, size_t size, size_t nmemb, vo
         char* value  = NULL;
         char* source = (char*)smalloc( (size*nmemb) + 1 );
         memcpy( source, ptr, size*nmemb );
-        
-        if ( ( error = regexec( &re, source, 3, matches, 0 ) ) != 0 ) 
+
+        if ( ( error = regexec( &re, source, 3, matches, 0 ) ) != 0 )
         {
             // Match failed. Just skip the given line.
             return size*nmemb;
@@ -144,7 +144,7 @@ static size_t simple_curl_write_header( void *ptr, size_t size, size_t nmemb, vo
  * This struct which is capable of holding a char* pointer as data and the
  * current length of the pointer used to manage reallocation properly.
  */
-static simple_curl_receive_body_t* simple_curl_receive_body_init() 
+static simple_curl_receive_body_t* simple_curl_receive_body_init()
 {
     simple_curl_receive_body_t* body = (simple_curl_receive_body_t*)smalloc( sizeof( simple_curl_receive_body_t ) );
     body->ptr = malloc( sizeof( char ) );
@@ -159,9 +159,9 @@ static simple_curl_receive_body_t* simple_curl_receive_body_init()
  * The struct itself as well as the internally managed string is freed upon
  * calling this.
  */
-static void simple_curl_receive_body_free( simple_curl_receive_body_t* body ) 
+static void simple_curl_receive_body_free( simple_curl_receive_body_t* body )
 {
-    if ( body != NULL ) 
+    if ( body != NULL )
     {
         (body->ptr != NULL) ? free( body->ptr ) : NULL;
         free( body );
@@ -174,7 +174,7 @@ static void simple_curl_receive_body_free( simple_curl_receive_body_t* body )
  * The header stream struct is used to store a pointer to the last linked list
  * elements of headers as well as the number of header entries already stored.
  */
-static simple_curl_receive_header_stream_t* simple_curl_receive_header_stream_init() 
+static simple_curl_receive_header_stream_t* simple_curl_receive_header_stream_init()
 {
     simple_curl_receive_header_stream_t* stream = (simple_curl_receive_header_stream_t*)smalloc( sizeof( simple_curl_receive_header_stream_t ) );
     stream->ptr = NULL;
@@ -189,19 +189,19 @@ static simple_curl_receive_header_stream_t* simple_curl_receive_header_stream_in
  * header information. Every linked list element including all its data will be
  * freed as well.
  */
-static void simple_curl_receive_header_stream_free( simple_curl_receive_header_stream_t* stream ) 
+static void simple_curl_receive_header_stream_free( simple_curl_receive_header_stream_t* stream )
 {
-    if ( stream != NULL ) 
+    if ( stream != NULL )
     {
         (stream->ptr != NULL) ? simple_curl_header_free_all( stream->ptr ) : NULL;
         free( stream );
     }
 }
 
-static void simple_curl_prepare_curl_headers( simple_curl_header_t* headers, struct curl_slist** curl_headers ) 
+static void simple_curl_prepare_curl_headers( simple_curl_header_t* headers, struct curl_slist** curl_headers )
 {
     simple_curl_header_t* cur = headers->root;
-    while( cur != NULL ) 
+    while( cur != NULL )
     {
         char* data = NULL;
         asprintf( &data, "%s: %s", cur->key, cur->value );
@@ -215,7 +215,7 @@ static void simple_curl_prepare_curl_headers( simple_curl_header_t* headers, str
  * Add a new header entry to a header linked list
  *
  * A new header key value pair is added to supplied linked list of already
- * available headers. 
+ * available headers.
  *
  * The provided header element has to be the last element of the current linked
  * list or NULL in which case a new list is created.
@@ -228,7 +228,7 @@ static void simple_curl_prepare_curl_headers( simple_curl_header_t* headers, str
  *
  * simple_curl_header_free_all needs to be called to free the occupied data.
  */
-simple_curl_header_t* simple_curl_header_add( simple_curl_header_t* header, char* key, char* value ) 
+simple_curl_header_t* simple_curl_header_add( simple_curl_header_t* header, char* key, char* value )
 {
     // Initialize a new header entry
     simple_curl_header_t* new_header = (simple_curl_header_t*)smalloc( sizeof( simple_curl_header_t ) );
@@ -239,17 +239,17 @@ simple_curl_header_t* simple_curl_header_add( simple_curl_header_t* header, char
 
     // Set the root and next accordingly
     new_header->next = NULL;
-    if ( header == NULL ) 
+    if ( header == NULL )
     {
         // This was an initialization the newly created header is root
         new_header->root = new_header;
     }
-    else 
+    else
     {
         new_header->root = header->root;
         header->next = new_header;
     }
-    
+
     return new_header;
 }
 
@@ -259,12 +259,12 @@ simple_curl_header_t* simple_curl_header_add( simple_curl_header_t* header, char
  * If the key does not exist in the list NULL is returned instead of the
  * corresponding string.
  */
-char* simple_curl_header_get_by_key( simple_curl_header_t* headers, char* key ) 
+char* simple_curl_header_get_by_key( simple_curl_header_t* headers, char* key )
 {
     simple_curl_header_t* cur = headers->root;
-    while( cur != NULL ) 
+    while( cur != NULL )
     {
-        if ( strcmp( cur->key, key ) == 0 ) 
+        if ( strcmp( cur->key, key ) == 0 )
         {
             return cur->value;
         }
@@ -280,12 +280,12 @@ char* simple_curl_header_get_by_key( simple_curl_header_t* headers, char* key )
  * list. The list structure itself as well as allocated strings inside are
  * freed.
  */
-void simple_curl_header_free_all( simple_curl_header_t* header ) 
+void simple_curl_header_free_all( simple_curl_header_t* header )
 {
-    if ( header != NULL ) 
+    if ( header != NULL )
     {
         simple_curl_header_t* next = header->root;
-        while( next != NULL ) 
+        while( next != NULL )
         {
             simple_curl_header_t* cur = next;
             next = next->next;
@@ -309,15 +309,15 @@ void simple_curl_header_free_all( simple_curl_header_t* header )
  *
  * The returned string has to be freed, if it is not needed any longer.
  */
-char* simple_curl_urlencode( char* url, int size ) 
+char* simple_curl_urlencode( char* url, int size )
 {
     char* hex_code = "0123456789abcdef";
 
-    if ( size == 0 ) 
+    if ( size == 0 )
     {
         size = strlen( url );
     }
-    
+
     // For the initial space requirement assume the worst case, aka every char
     // needs to be encoded. The string be reallocated after the encoding is
     // complete to free the not space not needed.
@@ -325,17 +325,17 @@ char* simple_curl_urlencode( char* url, int size )
 
     char* cur        = url;
     char* cur_result = result;
-    
-    while( cur - url < size ) 
+
+    while( cur - url < size )
     {
         if ( ( (*cur) >= 'a' && (*cur) <= 'z' )
           || ( (*cur) >= 'A' && (*cur) <= 'Z' )
-          || ( (*cur) >= '0' && (*cur) <= '9' ) ) 
+          || ( (*cur) >= '0' && (*cur) <= '9' ) )
         {
             // ASCII letter or digit. Simple write out the given character.
             *(cur_result++) = *cur;
         }
-        else 
+        else
         {
             // Escaped character needs to be written.
             *(cur_result++) = '%';
@@ -379,7 +379,7 @@ char* simple_curl_urlencode( char* url, int size )
  * server within the request. It may be NULL in which case only the default
  * headers will be send.
  */
-long simple_curl_request_complex( int operation, char* url, char** response_body, simple_curl_header_t** response_headers, char* request_body, simple_curl_header_t* request_headers ) 
+long simple_curl_request_complex( int operation, char* url, char** response_body, simple_curl_header_t** response_headers, char* request_body, simple_curl_header_t* request_headers )
 {
     CURL* ch = NULL;
     struct curl_slist *curl_request_headers = NULL;
@@ -387,14 +387,14 @@ long simple_curl_request_complex( int operation, char* url, char** response_body
     simple_curl_receive_header_stream_t* received_header_stream = simple_curl_receive_header_stream_init();
     simple_curl_receive_body_t*          received_body          = simple_curl_receive_body_init();
     long response_code = 0L;
-    
+
     ch = curl_easy_init();
     curl_easy_setopt( ch, CURLOPT_NOPROGRESS, 1 );
     curl_easy_setopt( ch, CURLOPT_ERRORBUFFER, curl_error );
 
     // Set the given url
-    curl_easy_setopt( ch, CURLOPT_URL, url ); 
-    
+    curl_easy_setopt( ch, CURLOPT_URL, url );
+
     // Set all the needed callbacks to receive the body and header data
     curl_easy_setopt( ch, CURLOPT_WRITEFUNCTION, simple_curl_write_body );
     curl_easy_setopt( ch, CURLOPT_WRITEDATA, (void*)received_body );
@@ -405,14 +405,14 @@ long simple_curl_request_complex( int operation, char* url, char** response_body
     // @TODO: set appropriate read functions here, as well as the correct
     //        request type currently GET is used by default.
     //
-    
-    if ( request_headers != NULL ) 
+
+    if ( request_headers != NULL )
     {
         simple_curl_prepare_curl_headers( request_headers, &curl_request_headers );
         curl_easy_setopt( ch, CURLOPT_HTTPHEADER, curl_request_headers );
     }
-    
-    if ( curl_easy_perform( ch ) != 0 ) 
+
+    if ( curl_easy_perform( ch ) != 0 )
     {
         set_error( "%s", curl_error );
         curl_easy_cleanup( ch );
@@ -428,13 +428,13 @@ long simple_curl_request_complex( int operation, char* url, char** response_body
 
     // Free the converted request headers if there are any
     ( curl_request_headers != NULL ) ? curl_slist_free_all( curl_request_headers ) : NULL;
-    
-    if ( response_body == NULL ) 
+
+    if ( response_body == NULL )
     {
         // Destroy the received body
         simple_curl_receive_body_free( received_body );
     }
-    else 
+    else
     {
         // Set the return value
         (*response_body) = received_body->ptr;
@@ -442,12 +442,12 @@ long simple_curl_request_complex( int operation, char* url, char** response_body
         free( received_body );
     }
 
-    if ( response_headers == NULL ) 
+    if ( response_headers == NULL )
     {
         // Destroy the received headers
         simple_curl_receive_header_stream_free( received_header_stream );
     }
-    else 
+    else
     {
         // Set the return value
         (*response_headers) = received_header_stream->ptr->root;

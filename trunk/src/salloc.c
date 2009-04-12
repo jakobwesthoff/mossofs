@@ -15,7 +15,7 @@
  * along with Mossofs; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301  USA
- *   
+ *
  * Copyright (C) 2009 Jakob Westhoff <jakob@westhoffswelt.de>
  */
 
@@ -23,24 +23,24 @@
 #include <stdio.h>
 #include <string.h>
 
-void* smalloc( size_t size ) 
+void* smalloc( size_t size )
 {
     void* ptr = NULL;
-    if ( ( ptr = malloc( size ) ) == NULL ) 
+    if ( ( ptr = malloc( size ) ) == NULL )
     {
         printf( "Allocation of %i bytes failed\n", size );
         exit( 255 );
     }
 
     memset( ptr, 0, size );
-    
+
     return ptr;
 }
 
-void* scalloc( size_t nelem, size_t elsize ) 
+void* scalloc( size_t nelem, size_t elsize )
 {
     void* ptr = NULL;
-    if ( ( ptr = calloc( nelem, elsize ) ) == NULL ) 
+    if ( ( ptr = calloc( nelem, elsize ) ) == NULL )
     {
         printf( "Allocation of %i bytes failed\n", nelem*elsize );
         exit( 255 );
@@ -49,10 +49,10 @@ void* scalloc( size_t nelem, size_t elsize )
     return ptr;
 }
 
-void* srealloc( void* ptr, size_t size ) 
+void* srealloc( void* ptr, size_t size )
 {
     void* new_ptr = NULL;
-    if ( ( new_ptr = realloc( ptr, size ) ) == NULL ) 
+    if ( ( new_ptr = realloc( ptr, size ) ) == NULL )
     {
         printf( "Reallocation of %i bytes failed\n", size );
         exit( 255 );

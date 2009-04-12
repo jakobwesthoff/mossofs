@@ -15,7 +15,7 @@
  * along with Mossofs; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301  USA
- *   
+ *
  * Copyright (C) 2009 Jakob Westhoff <jakob@westhoffswelt.de>
  */
 
@@ -35,7 +35,7 @@ char* mosso_error() { return error_string; }
 #define MOSSO_PATH_TYPE_PATH 0
 #define MOSSO_PATH_TYPE_FILE 1
 
-static void mosso_authenticate( mosso_connection_t** mosso ); 
+static void mosso_authenticate( mosso_connection_t** mosso );
 static mosso_object_t* mosso_create_object_list_from_response_body( mosso_object_t* object, char* response_body, char* path_prefix, int type, int* num );
 static mosso_object_t* mosso_object_add( mosso_object_t* object, char* name, char* request_path, int type );
 static char* mosso_construct_request_url( mosso_connection_t* mosso, char* request_path, int type, char* marker );
@@ -50,7 +50,7 @@ static char* mosso_container_from_request_path( char* request_path );
  * connection fails the given struct is freed and set to NULL. Furthermore
  * error_string is set accordingly.
  */
-static void mosso_authenticate( mosso_connection_t** mosso ) 
+static void mosso_authenticate( mosso_connection_t** mosso )
 {
     simple_curl_header_t* request_headers  = NULL;
     char* response_body                    = NULL;
@@ -60,7 +60,7 @@ static void mosso_authenticate( mosso_connection_t** mosso )
     request_headers = simple_curl_header_add( request_headers, "X-Auth-User", (*mosso)->username );
     request_headers = simple_curl_header_add( request_headers, "X-Auth-Key", (*mosso)->key );
 
-    if ( ( response_code = simple_curl_request_complex( SIMPLE_CURL_GET, "https://api.mosso.com/auth", &response_body, &response_headers, NULL, request_headers ) ) != 204 ) 
+    if ( ( response_code = simple_curl_request_complex( SIMPLE_CURL_GET, "https://api.mosso.com/auth", &response_body, &response_headers, NULL, request_headers ) ) != 204 )
     {
         // Mosso responded with something different than a 204. This indicates
         // an error.
@@ -103,15 +103,15 @@ static void mosso_authenticate( mosso_connection_t** mosso )
  * A valid mosso username as well as a valid API key is needed to fulfill the
  * init request.
  */
-mosso_connection_t* mosso_init( char* username, char* key ) 
+mosso_connection_t* mosso_init( char* username, char* key )
 {
     mosso_connection_t* mosso = smalloc( sizeof( mosso_connection_t ) );
     mosso->username = strdup( username );
     mosso->key      = strdup( key );
     mosso_authenticate( &mosso );
-    
+
     // DEBUG
-    printf( 
+    printf(
         "username: %s\nkey: %s\nstorage_token: %s\nauth_token: %s\nstorage_url: %s\ncdn_management_url: %s\n",
         mosso->username,
         mosso->key,
@@ -131,7 +131,7 @@ mosso_connection_t* mosso_init( char* username, char* key )
  *
  * If null is given as initial list item, a new list will be created.
  */
-static mosso_object_t* mosso_object_add( mosso_object_t* object, char* name, char* request_path, int type ) 
+static mosso_object_t* mosso_object_add( mosso_object_t* object, char* name, char* request_path, int type )
 {
     // Initialize a new object entry
     mosso_object_t* new_object = (mosso_object_t*)smalloc( sizeof( mosso_object_t ) );
@@ -143,17 +143,17 @@ static mosso_object_t* mosso_object_add( mosso_object_t* object, char* name, cha
 
     // Set the root and next accordingly
     new_object->next = NULL;
-    if ( object == NULL ) 
+    if ( object == NULL )
     {
         // This was an initialization the newly created object is root
         new_object->root = new_object;
     }
-    else 
+    else
     {
         new_object->root = object->root;
         object->next = new_object;
     }
-    
+
     return new_object;
 }
 
@@ -162,10 +162,10 @@ static mosso_object_t* mosso_object_add( mosso_object_t* object, char* name, cha
  *
  * Internally stored and allocated strings will be freed as well.
  */
-void mosso_object_free_all( mosso_object_t* object ) 
+void mosso_object_free_all( mosso_object_t* object )
 {
     mosso_object_t* cur = object->root;
-    while ( cur != NULL ) 
+    while ( cur != NULL )
     {
         mosso_object_t* next = cur->next;
         (cur->name != NULL)         ? free( cur->name )         : NULL;
@@ -183,12 +183,12 @@ void mosso_object_free_all( mosso_object_t* object )
  *
  * The num parameter is filled with the number of object entries created.
  */
-static mosso_object_t* mosso_create_object_list_from_response_body( mosso_object_t* object, char* response_body, char* path_prefix, int type, int* num ) 
+static mosso_object_t* mosso_create_object_list_from_response_body( mosso_object_t* object, char* response_body, char* path_prefix, int type, int* num )
 {
     int   num_objects = 0;
     char* cur         = response_body;
 
-    while( TRUE ) 
+    while( TRUE )
     {
         char* request_path = NULL;
         char* name         = NULL;
@@ -213,12 +213,12 @@ static mosso_object_t* mosso_create_object_list_from_response_body( mosso_object
         free( name );
         free( request_path );
 
-        if ( *end == 0 || *(end+1) == 0 ) /* Stop char or next start char is 0 stop here */ 
+        if ( *end == 0 || *(end+1) == 0 ) /* Stop char or next start char is 0 stop here */
         {
             // The response_body has been completely analysed
             break;
         }
-        else 
+        else
         {
             // Advance to the next run
             cur = end + 1;
@@ -244,7 +244,7 @@ static mosso_object_t* mosso_create_object_list_from_response_body( mosso_object
  * The marker parameter set to the escaped version of the given marker string
  * is set if it is not NULL.
  */
-static char* mosso_construct_request_url( mosso_connection_t* mosso, char* request_path, int type, char* marker ) 
+static char* mosso_construct_request_url( mosso_connection_t* mosso, char* request_path, int type, char* marker )
 {
     char* request_url = NULL;
     // All of the empty strings are allocated on the heap, so they always can
@@ -252,7 +252,7 @@ static char* mosso_construct_request_url( mosso_connection_t* mosso, char* reque
     char* base_url    = smalloc( sizeof( char ) );
     char* path_url    = smalloc( sizeof( char ) );
     char* parameters  = smalloc( sizeof( char ) );
-    
+
     // Set the correct base url
     {
         free( base_url );
@@ -266,14 +266,14 @@ static char* mosso_construct_request_url( mosso_connection_t* mosso, char* reque
         char* start = request_path;
         char* end   = request_path;
 
-        while( (*end) != 0 ) 
+        while( (*end) != 0 )
         {
             char* tmp          = NULL;
             char* encoded_part = NULL;
             // Find the next / or string end
             while( (*end) != '/' && (*end) != 0 ) { ++end; }
-            
-            if ( end != start ) 
+
+            if ( end != start )
             {
                 encoded_part = simple_curl_urlencode( start, end - start );
                 tmp = encoded_path;
@@ -284,26 +284,26 @@ static char* mosso_construct_request_url( mosso_connection_t* mosso, char* reque
             }
 
             // Advance to the next string section or to the end of the string
-            if ( (*end) == 0 ) 
+            if ( (*end) == 0 )
             {
                 start = end;
             }
-            else 
+            else
             {
                 start = ++end;
             }
 
-            // Handle the first slash correctly 
+            // Handle the first slash correctly
             // The initial slash is only appended if the string does not end
             // after it.
             if ( seen_slashes == 0 && (*end) != 0 )
             {
-                // Initial slash   
+                // Initial slash
                 tmp = encoded_path;
                 asprintf( &encoded_path, "%s/", tmp );
-                free( tmp );                
+                free( tmp );
             }
-            else if ( seen_slashes == 1 && type == MOSSO_PATH_TYPE_FILE && strlen( start ) != 0 ) 
+            else if ( seen_slashes == 1 && type == MOSSO_PATH_TYPE_FILE && strlen( start ) != 0 )
             {
                 // We are in file mode and have just entered the file part of
                 // the path. Therefore it is just completely escaped including
@@ -318,12 +318,12 @@ static char* mosso_construct_request_url( mosso_connection_t* mosso, char* reque
                 break;
             }
 
-            if ( seen_slashes == 1 && type == MOSSO_PATH_TYPE_PATH && strlen( start ) != 0 ) 
+            if ( seen_slashes == 1 && type == MOSSO_PATH_TYPE_PATH && strlen( start ) != 0 )
             {
                 // We have found a virtual container request. Therefore a path
                 // parameter is created containing all the complete left over
                 // string urlencoded. A preceeding slash is not appended.
-                free( parameters );               
+                free( parameters );
                 encoded_part = simple_curl_urlencode( start, 0 );
                 asprintf( &parameters, "?path=%s", encoded_part );
                 free( encoded_part );
@@ -332,7 +332,7 @@ static char* mosso_construct_request_url( mosso_connection_t* mosso, char* reque
 
             // Next section
             ++seen_slashes;
-        }        
+        }
 
         free( path_url );
         path_url = encoded_path;
@@ -340,16 +340,16 @@ static char* mosso_construct_request_url( mosso_connection_t* mosso, char* reque
 
     // Create the correct parameters string
     {
-        if ( marker != NULL ) 
+        if ( marker != NULL )
         {
             char* encoded_part = simple_curl_urlencode( marker, 0 );
 
-            if ( strlen( parameters ) == 0 ) 
+            if ( strlen( parameters ) == 0 )
             {
                 // Arguments list is still empty
                 asprintf( &parameters, "?marker=%s", encoded_part );
             }
-            else 
+            else
             {
                 // Arguments list does already contain arguments
                 char* tmp = parameters;
@@ -359,7 +359,7 @@ static char* mosso_construct_request_url( mosso_connection_t* mosso, char* reque
             free( encoded_part );
         }
     }
-    
+
     asprintf( &request_url, "%s%s%s", base_url, path_url, parameters );
     free( base_url );
     free( path_url );
@@ -372,7 +372,7 @@ static char* mosso_construct_request_url( mosso_connection_t* mosso, char* reque
  *
  * The caller needs to free the returned string if it is not needed any longer.
  */
-static char* mosso_container_from_request_path( char* request_path ) 
+static char* mosso_container_from_request_path( char* request_path )
 {
     char* container = NULL;
     char* start = request_path + 1; /* skip the initial slash */
@@ -404,11 +404,11 @@ static char* mosso_container_from_request_path( char* request_path )
  *
  * If count is a value different to NULL it will be filled with the number of
  * objects retrieved.
- * 
+ *
  * If an error occured NULL will be returned and the error string will be set
  * accordingly.
  */
-mosso_object_t* mosso_list_objects( mosso_connection_t* mosso, char* request_path, int* count ) 
+mosso_object_t* mosso_list_objects( mosso_connection_t* mosso, char* request_path, int* count )
 {
     char* response_body    = NULL;
     int   response_code    = 0;
@@ -417,16 +417,16 @@ mosso_object_t* mosso_list_objects( mosso_connection_t* mosso, char* request_pat
     int   object_count     = 0;
 
     // If no request path is given use an empty one
-    if ( request_path == NULL ) 
+    if ( request_path == NULL )
     {
         request_path = "";
     }
 
-    while( TRUE ) 
+    while( TRUE )
     {
-        char* request_url = NULL;        
-        
-        if ( object == NULL ) 
+        char* request_url = NULL;
+
+        if ( object == NULL )
         {
             // Initial request no marker needed
             request_url = mosso_construct_request_url( mosso, request_path, MOSSO_PATH_TYPE_PATH, NULL );
@@ -441,13 +441,13 @@ mosso_object_t* mosso_list_objects( mosso_connection_t* mosso, char* request_pat
         printf( "Provided Path: %s\n", request_path );
         printf( "Requesting: %s\n", request_url );
 
-        if ( ( response_code = simple_curl_request_complex( SIMPLE_CURL_GET, request_url, &response_body, NULL, NULL, mosso->auth_headers ) ) != 200 ) 
+        if ( ( response_code = simple_curl_request_complex( SIMPLE_CURL_GET, request_url, &response_body, NULL, NULL, mosso->auth_headers ) ) != 200 )
         {
-            if ( response_code == 204 ) 
+            if ( response_code == 204 )
             {
                 set_error( "No objects found." );
             }
-            else 
+            else
             {
                 set_error( "Statuscode: %ld, Response: %s", response_code, response_body );
             }
@@ -455,24 +455,24 @@ mosso_object_t* mosso_list_objects( mosso_connection_t* mosso, char* request_pat
             free( response_body );
             free( request_url );
 
-            if ( count != NULL ) 
+            if ( count != NULL )
             {
                 *count = 0;
             }
             return NULL;
         }
         free( request_url );
-        
+
         {
             // Add the objects to the list
             int type = ( strlen( request_path ) == 0 ) ? MOSSO_OBJECT_TYPE_CONTAINER : MOSSO_OBJECT_TYPE_OBJECT;
-            char* prefix    = NULL;            
-            if ( strlen( request_path ) == 0 || strcmp( request_path, "/" ) == 0 ) 
+            char* prefix    = NULL;
+            if ( strlen( request_path ) == 0 || strcmp( request_path, "/" ) == 0 )
             {
                 // The prefix is a simple slash
                 asprintf( &prefix, "/" );
             }
-            else 
+            else
             {
                 // The prefix is a slash followed by the container name followed by a slash
                 char* container = mosso_container_from_request_path( request_path );
@@ -487,7 +487,7 @@ mosso_object_t* mosso_list_objects( mosso_connection_t* mosso, char* request_pat
 
         object_count += num_objects;
 
-        if ( num_objects < 10000 ) 
+        if ( num_objects < 10000 )
         {
             // Objects are retrieved in chunks of 10000 objects max. Therefore
             // if the retrieved object count is lower than this the transfer is
@@ -495,10 +495,10 @@ mosso_object_t* mosso_list_objects( mosso_connection_t* mosso, char* request_pat
             break;
         }
     };
-    
+
     // Set the number of retrieved objects if the provided storage variable is
     // not NULL
-    if ( count != NULL ) 
+    if ( count != NULL )
     {
         *count = object_count;
     }
@@ -509,9 +509,9 @@ mosso_object_t* mosso_list_objects( mosso_connection_t* mosso, char* request_pat
 /**
  * Free a given mosso connection structure
  */
-void mosso_cleanup( mosso_connection_t* mosso ) 
+void mosso_cleanup( mosso_connection_t* mosso )
 {
-    if ( mosso != NULL ) 
+    if ( mosso != NULL )
     {
         ( mosso->username != NULL )           ? free( mosso->username )                            : NULL;
         ( mosso->key != NULL )                ? free( mosso->key )                                 : NULL;

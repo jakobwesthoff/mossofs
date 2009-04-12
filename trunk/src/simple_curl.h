@@ -18,7 +18,7 @@
  * along with Mossofs; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301  USA
- *   
+ *
  * Copyright (C) 2009 Jakob Westhoff <jakob@westhoffswelt.de>
  */
 
@@ -32,7 +32,7 @@
  * Linked list element to store header lines
  *
  * next points to the next list element or null if the list ends here.
- * 
+ *
  * root always points to the root element of the list to allow simple traversal
  * idenpendent of the given element.
  */

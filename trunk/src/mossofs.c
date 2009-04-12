@@ -15,7 +15,7 @@
  * along with Mossofs; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301  USA
- *   
+ *
  * Copyright (C) 2009 Jakob Westhoff <jakob@westhoffswelt.de>
  */
 
@@ -33,7 +33,7 @@
 /**
  * Show the usage message of this application
  */
-static void show_usage( char* executable ) 
+static void show_usage( char* executable )
 {
     printf( "Mossofs FUSE module version 0.1\n" );
     printf( "Jakob Westhoff <jakob@westhoffswelt.de>\n\n" );
@@ -56,7 +56,7 @@ int main( int argc, char **argv )
     mosso_connection_t* mosso = NULL;
 
     // Define all possible commandline options
-    struct option long_options[] = 
+    struct option long_options[] =
     {
         { "username", required_argument, NULL, 'u' },
         { "key",      required_argument, NULL, 'k' },
@@ -66,9 +66,9 @@ int main( int argc, char **argv )
     {
         int index = 0;
         int option = 0;
-        while( ( option = getopt_long( argc, argv, "u:k:", long_options, &index ) ) != -1 ) 
+        while( ( option = getopt_long( argc, argv, "u:k:", long_options, &index ) ) != -1 )
         {
-            switch ( option ) 
+            switch ( option )
             {
                 case 'u':
                     username = strdup( optarg );
@@ -79,7 +79,7 @@ int main( int argc, char **argv )
             }
         }
 
-        if ( username == NULL || key == NULL || argc != optind + 1 ) 
+        if ( username == NULL || key == NULL || argc != optind + 1 )
         {
             show_usage( argv[0] );
             exit( 1 );
@@ -88,8 +88,8 @@ int main( int argc, char **argv )
 
     // Initialize the cURL library enabling SSL support
     curl_global_init( CURL_GLOBAL_SSL );
-    
-    if ( ( mosso = mosso_init( username, key ) ) == NULL ) 
+
+    if ( ( mosso = mosso_init( username, key ) ) == NULL )
     {
         printf( "The connection to Mosso Cloudspace could not be established: %s\n", mosso_error() );
         curl_global_cleanup();
@@ -100,18 +100,18 @@ int main( int argc, char **argv )
         mosso_object_t* object = NULL;
         mosso_object_t* cur    = NULL;
         int count = 0;
-        
-        if ( ( object = mosso_list_objects( mosso, *(argv + optind), &count ) ) == NULL ) 
+
+        if ( ( object = mosso_list_objects( mosso, *(argv + optind), &count ) ) == NULL )
         {
             printf( "Container listing failed: %s\n", mosso_error() );
             curl_global_cleanup();
             exit( 2 );
         }
-        
+
         printf( "%d objects fetched\n", count );
 
         cur = object->root;
-        while( cur != NULL ) 
+        while( cur != NULL )
         {
             printf( "Name: %s, RequestPath: %s\n", cur->name, cur->request_path );
             cur = cur->next;
