@@ -67,7 +67,7 @@ typedef struct mosso_object
 
 mosso_connection_t* mosso_init( char* username, char* key );
 void mosso_object_free_all( mosso_object_t* object );
-mosso_object_t* mosso_list_containers( mosso_connection_t* mosso );
+mosso_object_t* mosso_list_objects( mosso_connection_t* mosso, char* request_path, int* count );
 void mosso_cleanup( mosso_connection_t* mosso );
 char* mosso_error();
 

@@ -32,10 +32,14 @@ static char* error_string = NULL;
 #define set_error(e, ...) (((error_string != NULL) ? free(error_string) : NULL), asprintf( &error_string, e, ##__VA_ARGS__ ))
 char* mosso_error() { return error_string; }
 
+#define MOSSO_PATH_TYPE_PATH 0
+#define MOSSO_PATH_TYPE_FILE 1
 
 static void mosso_authenticate( mosso_connection_t** mosso ); 
 static mosso_object_t* mosso_create_object_list_from_response_body( mosso_object_t* object, char* response_body, char* path_prefix, int type, int* num );
 static mosso_object_t* mosso_object_add( mosso_object_t* object, char* name, char* request_path, int type );
+static char* mosso_construct_request_url( mosso_connection_t* mosso, char* request_path, int type, char* marker );
+static char* mosso_container_from_request_path( char* request_path );
 
 
 /**
@@ -226,42 +230,221 @@ static mosso_object_t* mosso_create_object_list_from_response_body( mosso_object
 }
 
 /**
- * Retrieve a list of available containers from the mosso service.
+ * Construct the correct request url from a given request_path and the type of
+ * the request.
+ *
+ * The request path will be correclty escaped to based on the request_path given.
+ * The initial slash is never escaped as it is part of the path selectors of the url.
+ * The second slash is not escaped as well, as it specifies the seperator
+ * between container and container content.
+ *
+ * If the type is set to MOSSO_PATH_TYPE_PATH and more than two slashes are
+ * used the "path" parameter is used to select a virtual subpath.
+ *
+ * The marker parameter set to the escaped version of the given marker string
+ * is set if it is not NULL.
+ */
+static char* mosso_construct_request_url( mosso_connection_t* mosso, char* request_path, int type, char* marker ) 
+{
+    char* request_url = NULL;
+    // All of the empty strings are allocated on the heap, so they always can
+    // be free no matter if they have been used or not.
+    char* base_url    = smalloc( sizeof( char ) );
+    char* path_url    = smalloc( sizeof( char ) );
+    char* parameters  = smalloc( sizeof( char ) );
+    
+    // Set the correct base url
+    {
+        free( base_url );
+        base_url = strdup( mosso->storage_url );
+    }
+
+    // Construct the correct path for the url
+    {
+        char* encoded_path = smalloc( sizeof( char ) );
+        int seen_slashes = 0;
+        char* start = request_path;
+        char* end   = request_path;
+
+        while( (*end) != 0 ) 
+        {
+            char* tmp          = NULL;
+            char* encoded_part = NULL;
+            // Find the next / or string end
+            while( (*end) != '/' && (*end) != 0 ) { ++end; }
+            
+
+            if ( end != start ) 
+            {
+                encoded_part = simple_curl_urlencode( start, end - start );
+                tmp = encoded_path;
+                asprintf( &encoded_path, "%s%s", tmp, encoded_part );
+
+                free( tmp );
+                free( encoded_part );
+            }
+
+            // Advance to the next string section or to the end of the string
+            if ( (*end) == 0 ) 
+            {
+                start = end;
+            }
+            else 
+            {
+                start = ++end;
+            }
+
+            // Handle the slash correctly
+            if ( seen_slashes == 0 )                
+            {
+                // Initial slash   
+                tmp = encoded_path;
+                asprintf( &encoded_path, "%s/", tmp );
+                free( tmp );                
+            }
+            else if ( seen_slashes == 1 && type == MOSSO_PATH_TYPE_FILE && strlen( start ) != 0 ) 
+            {
+                // We are in file mode and have just entered the file part of
+                // the path. Therefore it is just completely escaped including
+                // all slashes that might still be in it. A preceeding
+                // unescaped slash needs to be appended as seperator between
+                // container and object.
+                encoded_part = simple_curl_urlencode( start, 0 );
+                tmp = encoded_path;
+                asprintf( &encoded_path, "%s/%s", tmp, encoded_part );
+                free( tmp );
+                free( encoded_part );
+                break;
+            }
+
+            if ( seen_slashes == 1 && type == MOSSO_PATH_TYPE_PATH && strlen( start ) != 0 ) 
+            {
+                // We have found a virtual container request. Therefore a path
+                // parameter is created containing all the complete left over
+                // string urlencoded. A preceeding slash is not appended.
+                free( parameters );               
+                encoded_part = simple_curl_urlencode( start, 0 );
+                asprintf( &parameters, "?path=%s", encoded_part );
+                free( encoded_part );
+                break;
+            }
+
+            // Next section
+            ++seen_slashes;
+        }        
+
+        free( path_url );
+        path_url = encoded_path;
+    }
+
+    // Create the correct parameters string
+    {
+        if ( marker != NULL ) 
+        {
+            char* encoded_part = simple_curl_urlencode( marker, 0 );
+
+            if ( strlen( parameters ) == 0 ) 
+            {
+                // Arguments list is still empty
+                asprintf( &parameters, "?marker=%s", encoded_part );
+            }
+            else 
+            {
+                // Arguments list does already contain arguments
+                char* tmp = parameters;
+                asprintf( &parameters, "%s&marker=%s", tmp, encoded_part );
+            }
+
+            free( encoded_part );
+        }
+    }
+    
+    asprintf( &request_url, "%s%s%s", base_url, path_url, parameters );
+    free( base_url );
+    free( path_url );
+    free( parameters );
+    return request_url;
+}
+
+/**
+ * Isolate the container name from a given full request path and return it.
+ *
+ * The caller needs to free the returned string if it is not needed any longer.
+ */
+static char* mosso_container_from_request_path( char* request_path ) 
+{
+    char* container = NULL;
+    char* start = request_path + 1; /* skip the initial slash */
+    char* end   = request_path + 1;
+
+    // Find the next slash or string end
+    while( (*end) != '/' && (*end) != 0 ) { ++end; }
+
+    // Allocate the needed memory and copy the string over
+    container = smalloc( sizeof( char ) * ( end - start + 1 ) );
+    memcpy( container, start, end - start );
+    return container;
+}
+
+/**
+ * Retrieve a list of objects inside a given container.
+ *
+ * If NULL is passed to the request_path a list of available
+ * containers will be returned. Otherwise the request_path has to be fully
+ * blown path to the requested resource. e.g "/foo" to request the contents of
+ * container foo.
+ *
+ * @TODO: Currently virtual paths inside of containers are not supported. This
+ * could be implemented later on to support a better simulation of a filesystem
+ * structure using virtual folder nodes as well as the "path" parameter for
+ * requests.
  *
  * The returned object will be a linked list of objects.
+ *
+ * If count is a value different to NULL it will be filled with the number of
+ * objects retrieved.
  * 
  * If an error occured NULL will be returned and the error string will be set
  * accordingly.
  */
-mosso_object_t* mosso_list_containers( mosso_connection_t* mosso ) 
+mosso_object_t* mosso_list_objects( mosso_connection_t* mosso, char* request_path, int* count ) 
 {
     char* response_body    = NULL;
     int   response_code    = 0;
     mosso_object_t* object = NULL;
-    int   num_objects      = 0;    
+    int   num_objects      = 0;
+    int   object_count     = 0;
+
+    // If no request path is given use an empty one
+    if ( request_path == NULL ) 
+    {
+        request_path = "";
+    }
 
     while( TRUE ) 
     {
-        char* request_url = NULL;
+        char* request_url = NULL;        
+        
         if ( object == NULL ) 
         {
-            // First request no marker needed
-            request_url = strdup( mosso->storage_url );
+            // Initial request no marker needed
+            request_url = mosso_construct_request_url( mosso, request_path, MOSSO_PATH_TYPE_PATH, NULL );
         }
-        else 
+        else
         {
             // We have fired a request before, therefore a marker needs to be
-            // set.
-            char* escaped_marker = curl_escape( object->name, 0 );
-            asprintf( &request_url, "%s?marker=%s", mosso->storage_url, escaped_marker );
-            curl_free( escaped_marker );
+            // appended.
+            request_url = mosso_construct_request_url( mosso, request_path, MOSSO_PATH_TYPE_PATH, object->name );
         }
+
+        printf( "Provided Path: %s\n", request_path );
+        printf( "Requesting: %s\n", request_url );
 
         if ( ( response_code = simple_curl_request_complex( SIMPLE_CURL_GET, request_url, &response_body, NULL, NULL, mosso->auth_headers ) ) != 200 ) 
         {
             if ( response_code == 204 ) 
             {
-                set_error( "No containers found." );
+                set_error( "No objects found." );
             }
             else 
             {
@@ -270,13 +453,38 @@ mosso_object_t* mosso_list_containers( mosso_connection_t* mosso )
 
             free( response_body );
             free( request_url );
+
+            if ( count != NULL ) 
+            {
+                *count = 0;
+            }
             return NULL;
         }
         free( request_url );
-
-        object = mosso_create_object_list_from_response_body( object, response_body, "/", MOSSO_OBJECT_TYPE_CONTAINER, &num_objects );
+        
+        {
+            // Add the objects to the list
+            int type = ( strlen( request_path ) == 0 ) ? MOSSO_OBJECT_TYPE_CONTAINER : MOSSO_OBJECT_TYPE_OBJECT;
+            char* prefix    = NULL;            
+            if ( strlen( request_path ) == 0 || strcmp( request_path, "/" ) == 0 ) 
+            {
+                // The prefix is a simple slash
+                asprintf( &prefix, "/" );
+            }
+            else 
+            {
+                // The prefix is a slash followed by the container name followed by a slash
+                char* container = mosso_container_from_request_path( request_path );
+                asprintf( &prefix, "/%s/", container );
+                free( container );
+            }
+            object = mosso_create_object_list_from_response_body( object, response_body, prefix, type, &num_objects );
+            free( prefix );
+        }
 
         free( response_body );
+
+        object_count += num_objects;
 
         if ( num_objects < 10000 ) 
         {
@@ -287,6 +495,13 @@ mosso_object_t* mosso_list_containers( mosso_connection_t* mosso )
         }
     };
     
+    // Set the number of retrieved objects if the provided storage variable is
+    // not NULL
+    if ( count != NULL ) 
+    {
+        *count = object_count;
+    }
+
     return object;
 }
 

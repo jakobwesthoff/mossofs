@@ -99,15 +99,18 @@ int main( int argc, char **argv )
     {
         mosso_object_t* object = NULL;
         mosso_object_t* cur    = NULL;
+        int count = 0;
         
-        if ( ( object = mosso_list_containers( mosso ) ) == NULL ) 
+        if ( ( object = mosso_list_objects( mosso, *(argv + optind), &count ) ) == NULL ) 
         {
             printf( "Container listing failed: %s\n", mosso_error() );
             curl_global_cleanup();
             exit( 2 );
         }
-        cur = object->root;
+        
+        printf( "%d objects fetched\n", count );
 
+        cur = object->root;
         while( cur != NULL ) 
         {
             printf( "Name: %s, RequestPath: %s\n", cur->name, cur->request_path );
@@ -120,7 +123,7 @@ int main( int argc, char **argv )
 
 
     // argv + optind
-    // argv - optind
+    // argc - optind
 
     return 0;
 }
