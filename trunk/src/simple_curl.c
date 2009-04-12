@@ -45,7 +45,7 @@ typedef struct
 typedef struct
 {
     char* ptr;
-    long long unsigned length;
+    size_t length;
 } simple_curl_receive_body_t;
 
 /**
@@ -55,8 +55,8 @@ typedef struct
 typedef struct
 {
     char* ptr;
-    long long unsigned offset;
-    long long unsigned length;
+    size_t offset;
+    size_t length;
 } simple_curl_request_body_t;
 
 
@@ -83,7 +83,7 @@ static void simple_curl_request_body_free( simple_curl_request_body_t* body );
  */
 static size_t simple_curl_write_body( void *ptr, size_t size, size_t nmemb, void *stream )
 {
-    long long unsigned int new_length = 0;
+    size_t new_length = 0;
     simple_curl_receive_body_t* recv = (simple_curl_receive_body_t*)stream;
     recv->ptr = (char*)srealloc( recv->ptr, ( new_length = ( size * nmemb ) + recv->length ) + 1 );
     memset( recv->ptr + recv->length, 0, (  size * nmemb ) + 1 );
@@ -416,7 +416,14 @@ long simple_curl_request_complex( int operation, char* url, char** response_body
     char curl_error[CURL_ERROR_SIZE];
     simple_curl_receive_header_stream_t* received_header_stream = simple_curl_receive_header_stream_init();
     simple_curl_receive_body_t*          received_body          = simple_curl_receive_body_init();
+    simple_curl_request_body_t*          request_body_stream    = NULL;
     long response_code = 0L;
+
+    // Initialize the request_body struct if a request body is supplied
+    if ( request_body != NULL )
+    {
+        request_body_stream = simple_curl_request_body_init( request_body, 0 );
+    }
 
     ch = curl_easy_init();
     curl_easy_setopt( ch, CURLOPT_NOPROGRESS, 1 );
@@ -431,10 +438,39 @@ long simple_curl_request_complex( int operation, char* url, char** response_body
     curl_easy_setopt( ch, CURLOPT_HEADERFUNCTION, simple_curl_write_header );
     curl_easy_setopt( ch, CURLOPT_HEADERDATA, (void*)received_header_stream );
 
-    //
-    // @TODO: set appropriate read functions here, as well as the correct
-    //        request type currently GET is used by default.
-    //
+    // The different request types need special kinds of options to be executed
+    // correctly
+    switch( operation )
+    {
+        case SIMPLE_CURL_GET:
+            curl_easy_setopt( ch, CURLOPT_HTTPGET, 1 );
+        break;
+        case SIMPLE_CURL_HEAD:
+            curl_easy_setopt( ch, CURLOPT_NOBODY, 1 );
+        break;
+        case SIMPLE_CURL_DELETE:
+            curl_easy_setopt( ch, CURLOPT_NOBODY, 1 );
+            curl_easy_setopt( ch, CURLOPT_CUSTOMREQUEST, "DELETE" );
+        break;
+        case SIMPLE_CURL_POST:
+            curl_easy_setopt( ch, CURLOPT_POST, 1 );
+            if ( request_body != NULL )
+            {
+                curl_easy_setopt( ch, CURLOPT_POSTFIELDSIZE_LARGE, strlen( request_body ) );
+                curl_easy_setopt( ch, CURLOPT_READDATA, (void*)request_body );
+                curl_easy_setopt( ch, CURLOPT_READFUNCTION, simple_curl_read_body );
+            }
+        break;
+        case SIMPLE_CURL_PUT:
+            curl_easy_setopt( ch, CURLOPT_UPLOAD, 1 );
+            if ( request_body != NULL )
+            {
+                curl_easy_setopt( ch, CURLOPT_INFILESIZE_LARGE, strlen( request_body ) );
+                curl_easy_setopt( ch, CURLOPT_READDATA, (void*)request_body );
+                curl_easy_setopt( ch, CURLOPT_READFUNCTION, simple_curl_read_body );
+            }
+        break;
+    }
 
     if ( request_headers != NULL )
     {
@@ -448,7 +484,8 @@ long simple_curl_request_complex( int operation, char* url, char** response_body
         curl_easy_cleanup( ch );
         simple_curl_receive_header_stream_free( received_header_stream );
         simple_curl_receive_body_free( received_body );
-        ( curl_request_headers != NULL ) ? curl_slist_free_all( curl_request_headers ) : NULL;
+        ( request_body_stream != NULL )  ? simple_curl_request_body_free( request_body_stream ) : NULL;
+        ( curl_request_headers != NULL ) ? curl_slist_free_all( curl_request_headers )   : NULL;
         return 0;
     }
 
@@ -458,6 +495,11 @@ long simple_curl_request_complex( int operation, char* url, char** response_body
 
     // Free the converted request headers if there are any
     ( curl_request_headers != NULL ) ? curl_slist_free_all( curl_request_headers ) : NULL;
+
+    // Free the request body struct if there was any created
+    // This frees only the struct itself not the attached data. The data needs
+    // to be freed by the calling function, which supplied this information.
+    ( request_body_stream != NULL ) ? simple_curl_request_body_free( request_body_stream ) : NULL;
 
     if ( response_body == NULL )
     {
