@@ -313,16 +313,53 @@ static char* mosso_construct_request_url( mosso_connection_t* mosso, char* reque
             else if ( seen_slashes == 1 && type == MOSSO_PATH_TYPE_FILE && strlen( start ) != 0 )
             {
                 // We are in file mode and have just entered the file part of
-                // the path. Therefore it is just completely escaped including
-                // all slashes that might still be in it. A preceeding
-                // unescaped slash needs to be appended as seperator between
-                // container and object.
+                // the path.
+                
+                /*
+                 * Unfortunately the mosso service does not handle these
+                 * requests correctly, as they are described in the docs. The
+                 * docs propose that the object name needs to be fully url
+                 * encoded that would include all slashes in it. Unfortunately
+                 * the service only accepts urlencoded names accept for the
+                 * slashes they need to be provided unencoded.
+                 */
+
+                end = start;
+                while ( TRUE ) 
+                {
+                    if ( (*end) == '/' || (*end) == 0 ) 
+                    {
+                        encoded_part = simple_curl_urlencode( start, end - start );
+                        tmp = encoded_path;
+                        asprintf( &encoded_path, "%s/%s", tmp, encoded_part );
+                        free( tmp );
+                        free( encoded_part );
+
+                        if ( (*end) != 0 ) 
+                        {
+                            start = ++end;
+                            continue;
+                        }
+                        else 
+                        {
+                            // We have reached the end of the string
+                            break;
+                        }
+                    }
+                    ++end;
+                }
+                break;
+
+                /* Behaviour according to the docs. This is left in here, in
+                 * case mosso decides to get conform to there own documentation
+                 * one day.                
                 encoded_part = simple_curl_urlencode( start, 0 );
                 tmp = encoded_path;
                 asprintf( &encoded_path, "%s/%s", tmp, encoded_part );
                 free( tmp );
                 free( encoded_part );
                 break;
+                */
             }
 
             if ( seen_slashes == 1 && type == MOSSO_PATH_TYPE_PATH )
@@ -515,6 +552,64 @@ mosso_object_t* mosso_list_objects( mosso_connection_t* mosso, char* request_pat
     }
 
     return object;
+}
+
+/**
+ * Create a new directory inside your mosso cloudfs
+ *
+ * If a root directory aka something like "/foo" is specified a new container
+ * will be created.
+ * 
+ * If a directory nested more deeply aka something like "/foo/bar" is
+ * specified an new virtual directory in the specified container will be
+ * created. This means the entry will be created as a normal mosso object and
+ * the content-type will be set to "application/directory". This allows the
+ * later retrieval using mosso's virtualpath parameter path.
+ *
+ * The function does not work recursively. If you want to create the directory
+ * "/foo/bar/baz", the directories "/foo" and "/foo/bar" need to be already
+ * existant.
+ *
+ * In case of success TRUE is returned.
+ *
+ * In case of an error FALSE is returned and the error string and code is
+ * filled with appropriate information, which can be retrieved using the
+ * mosso_error and mosso_error_code functions.
+ */
+int mosso_create_directory( mosso_connection_t* mosso, char* request_path ) 
+{
+    long response_code = 0;
+
+    // A path type file request is made to ensure the virtual path parameter is
+    // not used. The virtual directory should be specified like a normal file
+    // for creation.
+    char* request_url = mosso_construct_request_url( mosso, request_path, MOSSO_PATH_TYPE_FILE, NULL );
+
+    printf( "Requesting: PUT %s\n", request_url );
+
+    simple_curl_header_t* header = simple_curl_header_copy( mosso->auth_headers );
+    header = simple_curl_header_add( header, "Content-Length", "0" );
+    header = simple_curl_header_add( header, "Content-Type", "application/directory" );
+    
+    if ( ( response_code = simple_curl_request_put( request_url, NULL, NULL, NULL, header ) ) != 201 ) 
+    {
+        switch( response_code ) 
+        {
+            case 202:
+                set_error( MOSSO_ERROR_ACCEPTED, "The directory does already exist." );                
+            break;
+                default:
+                    set_error( response_code, "Statuscode: %ld", response_code );
+        }
+
+        simple_curl_header_free_all( header );
+        free( request_url );
+        return FALSE;
+    }
+    
+    simple_curl_header_free_all( header );
+    free( request_url );
+    return TRUE;
 }
 
 /**
