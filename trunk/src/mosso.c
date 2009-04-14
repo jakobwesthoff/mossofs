@@ -29,8 +29,8 @@
 #include "salloc.h"
 
 static char* error_string = NULL;
-statuc long  error_code = MOSSO_ERROR_OK;
-#define set_error(code, e, ...) (error_code = code, ((error_string != NULL) ? free(error_string) : NULL), (( e != NULL ) ? (asprintf( &error_string, e, ##__VA_ARGS__ )) : (error_string = NULL) ) )
+static long  error_code = MOSSO_ERROR_OK;
+#define set_error(c, e, ...) (error_code = c, ((error_string != NULL) ? free(error_string) : NULL), (( e != NULL ) ? (asprintf( &error_string, e, ##__VA_ARGS__ ), NULL) : (error_string = NULL) ))
 char* mosso_error_string() { return error_string; }
 long  mosso_error() { return error_code; }
 
