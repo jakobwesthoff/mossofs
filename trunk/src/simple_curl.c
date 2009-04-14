@@ -487,12 +487,17 @@ long simple_curl_request_complex( int operation, char* url, char** response_body
             }
         break;
         case SIMPLE_CURL_PUT:
-            curl_easy_setopt( ch, CURLOPT_UPLOAD, 1 );
             if ( request_body != NULL )
             {
+                curl_easy_setopt( ch, CURLOPT_UPLOAD, 1 );
                 curl_easy_setopt( ch, CURLOPT_INFILESIZE_LARGE, strlen( request_body ) );
                 curl_easy_setopt( ch, CURLOPT_READDATA, (void*)request_body );
                 curl_easy_setopt( ch, CURLOPT_READFUNCTION, simple_curl_read_body );
+            }
+            else 
+            {
+                curl_easy_setopt( ch, CURLOPT_NOBODY, 1 );
+                curl_easy_setopt( ch, CURLOPT_CUSTOMREQUEST, "PUT" );
             }
         break;
     }
