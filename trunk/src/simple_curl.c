@@ -304,6 +304,31 @@ char* simple_curl_header_get_by_key( simple_curl_header_t* headers, char* key )
 }
 
 /**
+ * Copy a given header linked list
+ *
+ * A newly allocated deep copy of the initially provided header struct will be
+ * returned.
+ *
+ * The caller is responsible to free the provided copy using
+ * simple_curl_header_free_all, as soon as it is not needed any longer.
+ *
+ * The returned linked list element will be the last one in the chain.
+ * Therefore new headers can be easily added to the list by simply calling
+ * simple_curl_header_add on it.
+ */
+simple_curl_header_t* simple_curl_header_copy( simple_curl_header_t* header ) 
+{
+    simple_curl_header_t* copy = NULL;
+    simple_curl_header_t* cur  = header->root;
+    while( cur != NULL ) 
+    {
+        copy = simple_curl_header_add( copy, cur->key, cur->value );
+        cur = cur->next;
+    }
+    return copy;
+}
+
+/**
  * Free a header linked list
  *
  * This function frees a complete linked list, given any element inside the

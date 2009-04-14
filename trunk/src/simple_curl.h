@@ -48,6 +48,7 @@ typedef struct simple_curl_header
 char* simple_curl_error();
 simple_curl_header_t* simple_curl_header_add( simple_curl_header_t* header, char* key, char* value );
 char* simple_curl_header_get_by_key( simple_curl_header_t* headers, char* key );
+simple_curl_header_t* simple_curl_header_copy( simple_curl_header_t* header );
 void simple_curl_header_free_all( simple_curl_header_t* header );
 char* simple_curl_urlencode( char* url, int size );
 
