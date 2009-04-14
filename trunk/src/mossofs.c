@@ -91,7 +91,7 @@ int main( int argc, char **argv )
 
     if ( ( mosso = mosso_init( username, key ) ) == NULL )
     {
-        printf( "The connection to Mosso Cloudspace could not be established: %s\n", mosso_error() );
+        printf( "The connection to Mosso Cloudspace could not be established: %s\n", mosso_error_string() );
         curl_global_cleanup();
         exit( 2 );
     }
@@ -103,7 +103,7 @@ int main( int argc, char **argv )
 
         if ( ( object = mosso_list_objects( mosso, *(argv + optind), &count ) ) == NULL )
         {
-            printf( "Container listing failed: %s\n", mosso_error() );
+            printf( "Container listing failed: %s\n", mosso_error_string() );
             curl_global_cleanup();
             exit( 2 );
         }

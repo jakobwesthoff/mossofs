@@ -29,8 +29,10 @@
 #include "salloc.h"
 
 static char* error_string = NULL;
-#define set_error(e, ...) (((error_string != NULL) ? free(error_string) : NULL), asprintf( &error_string, e, ##__VA_ARGS__ ))
-char* mosso_error() { return error_string; }
+statuc long  error_code = MOSSO_ERROR_OK;
+#define set_error(code, e, ...) (error_code = code, ((error_string != NULL) ? free(error_string) : NULL), (( e != NULL ) ? (asprintf( &error_string, e, ##__VA_ARGS__ )) : (error_string = NULL) ) )
+char* mosso_error_string() { return error_string; }
+long  mosso_error() { return error_code; }
 
 #define MOSSO_PATH_TYPE_PATH 0
 #define MOSSO_PATH_TYPE_FILE 1
@@ -64,7 +66,12 @@ static void mosso_authenticate( mosso_connection_t** mosso )
     {
         // Mosso responded with something different than a 204. This indicates
         // an error.
-        set_error( "Statuscode: %ld, Response: %s", response_code, response_body );
+        switch( response_code ) 
+        {
+            case 401:
+                set_error( MOSSO_ERROR_UNAUTHORIZED, "The authorization has been declined: %s", response_body );
+            break;            
+        }
         mosso_cleanup( (*mosso) );
         free( response_body );
         simple_curl_header_free_all( request_headers );
@@ -445,15 +452,17 @@ mosso_object_t* mosso_list_objects( mosso_connection_t* mosso, char* request_pat
 
         if ( ( response_code = simple_curl_request_get( request_url, &response_body, NULL, mosso->auth_headers ) ) != 200 )
         {
-            if ( response_code == 204 )
+            // Something different than a 200 has been returned this might
+            // indicate an error.
+            switch ( response_code ) 
             {
-                set_error( "No objects found." );
+                case 204:
+                    set_error( MOSSO_ERROR_NOCONTENT, "No objects found." );
+                break;
+                default:
+                    set_error( response_code, "Statuscode: %ld, Response body: %s", response_code, response_body );
             }
-            else
-            {
-                set_error( "Statuscode: %ld, Response: %s", response_code, response_body );
-            }
-
+            
             free( response_body );
             free( request_url );
 

@@ -29,6 +29,25 @@
 #include "simple_curl.h"
 
 /**
+ * Error codes accessible through mosso_get_error() in case something bad happened.
+ *
+ * They have a close connection to the HTTP status codes returned by mossos
+ * REST interface, therefore they are not simple numbered but have a certain
+ * structure.
+ */
+#define MOSSO_ERROR_OK 200
+#define MOSSO_ERROR_CREATED 201
+#define MOSSO_ERROR_ACCEPTED 202
+/* No content does not always imply a fatal error. Some operations just do not
+ * give content, like a HEAD. In this case this reaction is perfectly normal.
+ */
+#define MOSSO_ERROR_NOCONTENT 204
+#define MOSSO_ERROR_UNAUTHORIZED 401
+#define MOSSO_ERROR_NOTFOUND 404
+#define MOSSO_ERROR_DIRECTORY_NOT_EMPTY 409
+#define MOSSO_ERROR_CHECKSUMMISMATCH 422
+
+/**
  * Data structure to transport all mosso cloudspace connection related data
  * between different function calls.
  */
@@ -69,6 +88,8 @@ mosso_connection_t* mosso_init( char* username, char* key );
 void mosso_object_free_all( mosso_object_t* object );
 mosso_object_t* mosso_list_objects( mosso_connection_t* mosso, char* request_path, int* count );
 void mosso_cleanup( mosso_connection_t* mosso );
-char* mosso_error();
+
+char* mosso_error_string();
+long mosso_error();
 
 #endif
