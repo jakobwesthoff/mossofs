@@ -318,11 +318,15 @@ static char* mosso_construct_request_url( mosso_connection_t* mosso, char* reque
                 break;
             }
 
-            if ( seen_slashes == 1 && type == MOSSO_PATH_TYPE_PATH && strlen( start ) != 0 )
+            if ( seen_slashes == 1 && type == MOSSO_PATH_TYPE_PATH )
             {
-                // We have found a virtual container request. Therefore a path
-                // parameter is created containing all the complete left over
-                // string urlencoded. A preceeding slash is not appended.
+                // A path parameter is always appended to ensure a directory
+                // like structure is returned without listing all pseudo
+                // subdirectory information. It is filled with the complete
+                // left over string urlencoded. A preceeding slash is not
+                // appended. In case a container has simply been reguested an
+                // empty path parameter is provided which enables virtualpath
+                // handling on the mosso side.
                 free( parameters );
                 encoded_part = simple_curl_urlencode( start, 0 );
                 asprintf( &parameters, "?path=%s", encoded_part );
