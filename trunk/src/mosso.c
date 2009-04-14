@@ -395,10 +395,8 @@ static char* mosso_container_from_request_path( char* request_path )
  * blown path to the requested resource. e.g "/foo" to request the contents of
  * container foo.
  *
- * @TODO: Currently virtual paths inside of containers are not supported. This
- * could be implemented later on to support a better simulation of a filesystem
- * structure using virtual folder nodes as well as the "path" parameter for
- * requests.
+ * Given paths deeper than one level, will be automatically translated into a
+ * virtual path request.
  *
  * The returned object will be a linked list of objects.
  *
