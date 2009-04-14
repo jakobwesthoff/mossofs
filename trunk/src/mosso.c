@@ -613,6 +613,52 @@ int mosso_create_directory( mosso_connection_t* mosso, char* request_path )
 }
 
 /**
+ * Delete an object on the connected mosso storage
+ *
+ * Delete an arbitraty object from the mosso storage.
+ *
+ * The specified object may either be a mosso object, a container or a virtual path node.
+ * 
+ * Recursive deletion is not handled in any way. If you try to delete a
+ * non-empty container an error will be thrown. If you try to delete a virtual
+ * directory with "content" still in it the virtual directory node will be
+ * deleted. Its contents will still remain existant, but may not be easily
+ * accessible until the virtual node is recreated. Take care you do not delete
+ * non-empty directories.
+ * 
+ * On error FALSE will be returned and the error code and string is set
+ * accordingly.
+ */
+int mosso_delete_object( mosso_connection_t* mosso, char* request_path ) 
+{
+    long response_code = 0;
+
+    // The deletion is done on a file base. Virtual directories are only files
+    // with a special content type.
+    char* request_url = mosso_construct_request_url( mosso, request_path, MOSSO_PATH_TYPE_FILE, NULL );
+
+    printf( "Requesting: DELETE %s\n", request_url );
+    
+    if ( ( response_code = simple_curl_request_delete( request_url, NULL, mosso->auth_headers ) ) != 204 ) 
+    {
+        switch( response_code ) 
+        {
+            case 404:
+                set_error( MOSSO_ERROR_NOTFOUND, "The object could not be found." );                
+            break;
+                default:
+                    set_error( response_code, "Statuscode: %ld", response_code );
+        }
+
+        free( request_url );
+        return FALSE;
+    }
+    
+    free( request_url );
+    return TRUE;
+}
+
+/**
  * Free a given mosso connection structure
  */
 void mosso_cleanup( mosso_connection_t* mosso )

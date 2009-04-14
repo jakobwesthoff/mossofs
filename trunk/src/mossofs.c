@@ -103,20 +103,43 @@ int main( int argc, char **argv )
 
         if ( ( object = mosso_list_objects( mosso, *(argv + optind), &count ) ) == NULL )
         {
-            printf( "Container listing failed: %s\n", mosso_error_string() );
-            curl_global_cleanup();
-            exit( 2 );
+            if ( mosso_error() != MOSSO_ERROR_NOCONTENT ) 
+            {
+                printf( "Container listing failed: %s\n", mosso_error_string() );
+                curl_global_cleanup();
+                exit( 2 );
+            }
+            else 
+            {
+                printf( "%s\n", mosso_error_string() );
+            }
         }
 
         printf( "%d objects fetched\n", count );
 
-        cur = object->root;
-        while( cur != NULL )
+        if ( count != 0 ) 
         {
-            printf( "Name: %s, RequestPath: %s\n", cur->name, cur->request_path );
-            cur = cur->next;
+            cur = object->root;
+            while( cur != NULL )
+            {
+                printf( "Name: %s, RequestPath: %s\n", cur->name, cur->request_path );
+                cur = cur->next;
+            }
+            mosso_object_free_all( object );
         }
-        mosso_object_free_all( object );
+    }
+
+    {
+        if ( mosso_create_directory( mosso, *(argv+optind) ) != TRUE ) 
+        {
+            printf( "Create directory failed: %s\n", mosso_error_string() );
+        }
+
+        if ( mosso_delete_object( mosso, *(argv+optind) ) != TRUE ) 
+        {
+            printf( "Delete object failed: %s\n", mosso_error_string() );
+        }
+
     }
 
     mosso_cleanup( mosso );
