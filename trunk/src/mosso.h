@@ -26,6 +26,8 @@
 #define TRUE  1
 #define FALSE 0
 
+#include <time.h>
+
 #include "simple_curl.h"
 
 /**
@@ -63,8 +65,10 @@ typedef struct
 } mosso_connection_t;
 
 
-#define MOSSO_OBJECT_TYPE_CONTAINER 0
-#define MOSSO_OBJECT_TYPE_OBJECT    1
+#define MOSSO_OBJECT_TYPE_CONTAINER      0
+#define MOSSO_OBJECT_TYPE_OBJECT_OR_VDIR 1
+#define MOSSO_OBJECT_TYPE_OBJECT         2
+#define MOSSO_OBJECT_TYPE_VDIR           3
 
 /**
  * Structure holding information about a specific mosso_object.
@@ -82,6 +86,34 @@ typedef struct mosso_object
     struct mosso_object* next;
     struct mosso_object* root;
 } mosso_object_t;
+ 
+
+/**
+ * Structure holding information about a tag associated with any mosso object.
+ */
+typedef struct mosso_tag 
+{
+    char* key;
+    char* value;
+    struct mosso_tag* next;
+    struct mosso_tag* root;
+} mosso_tag_t;
+
+/**
+ * Structure representing meta data stored for a given object
+ */
+typedef struct 
+{
+    char* name;
+    char* request_path;
+    int type;
+    char* content_type;
+    char* checksum;
+    time_t mtime;
+    uint64_t size;    
+    uint64_t object_count;
+    mosso_tag_t* tag;
+} mosso_object_meta_t;
 
 
 mosso_connection_t* mosso_init( char* username, char* key );
@@ -89,6 +121,10 @@ void mosso_object_free_all( mosso_object_t* object );
 mosso_object_t* mosso_list_objects( mosso_connection_t* mosso, char* request_path, int* count );
 int mosso_create_directory( mosso_connection_t* mosso, char* request_path ); 
 void mosso_cleanup( mosso_connection_t* mosso );
+mosso_tag_t* mosso_tag_add( mosso_tag_t* tag, char* key, char* value ); 
+mosso_tag_t* mosso_tag_replace_or_add( mosso_tag_t* tag, char* key, char* value );
+void mosso_tag_free_all( mosso_tag_t* tag );
+mosso_tag_t* mosso_get_tag_by_key( mosso_tag_t* tag, char* key );
 
 char* mosso_error_string();
 long mosso_error();

@@ -42,6 +42,8 @@ static mosso_object_t* mosso_create_object_list_from_response_body( mosso_object
 static mosso_object_t* mosso_object_add( mosso_object_t* object, char* name, char* request_path, int type );
 static char* mosso_construct_request_url( mosso_connection_t* mosso, char* request_path, int type, char* marker );
 static char* mosso_container_from_request_path( char* request_path );
+static mosso_object_meta_t* mosso_object_meta_init();
+static void mosso_object_meta_free( mosso_object_meta_t* meta );
 
 
 /**
@@ -436,6 +438,169 @@ static char* mosso_container_from_request_path( char* request_path )
 }
 
 /**
+ * Initialize a new object meta structure and return it
+ */
+static mosso_object_meta_t* mosso_object_meta_init() 
+{
+    mosso_object_meta_t* meta = ( mosso_object_meta_t* )smalloc( sizeof( mosso_object_meta_t ) );
+    return meta;
+}
+
+/**
+ * Free a given mosso meta structure including all the linked information
+ */
+static void mosso_object_meta_free( mosso_object_meta_t* meta ) 
+{
+    if ( meta != NULL ) 
+    {
+        (meta->name != NULL) ? free( meta->name ) : NULL;
+        (meta->request_path != NULL) ? free( meta->request_path ) : NULL;
+        (meta->content_type != NULL) ? free( meta->content_type ) : NULL;
+        (meta->checksum != NULL) ? free( meta->checksum ) : NULL;
+        (meta->tag != NULL) ? mosso_tag_free_all( meta->tag ) : NULL;
+        free( meta );
+    }
+}
+
+/**
+ * Add a new tag to a linked list of tags
+ *
+ * The tag will be added to the given linked list of tags and the new end of
+ * the list will be returned. You have to always provide the end of the list to
+ * this function in order to append a new element. Otherwise the behaviour is
+ * undefined.
+ *
+ * If the provided tag is NULL a new list will be created and returned.
+ *
+ * This function does not check if the same key value pair does already exist
+ * on the given list. A key provided twice will be added twice to the list.
+ * This might cause problems during the execution of the corresponding mosso
+ * call using this tag list.
+ *
+ * If you are working on a list which content you do not know completely or
+ * want to replace an existing key with a new value use the
+ * mosso_tag_replace_or_add function instead. But be warned that this function
+ * is more time complex than this, because it needs to iterate through the
+ * whole list checking every provided key.
+ */
+mosso_tag_t* mosso_tag_add( mosso_tag_t* tag, char* key, char* value ) 
+{
+    // Initialize a new tag entry
+    mosso_tag_t* new_tag = (mosso_tag_t*)smalloc( sizeof( mosso_tag_t ) );
+
+    // Copy the data to it
+    new_tag->key   = strdup( key );
+    new_tag->value = strdup( value );
+
+    // Set the root and next accordingly
+    new_tag->next = NULL;
+    if ( tag == NULL )
+    {
+        // This was an initialization the newly created tag is root
+        new_tag->root = new_tag;
+    }
+    else
+    {
+        new_tag->root = tag->root;
+        tag->next = new_tag;
+    }
+
+    return new_tag;
+}
+
+/**
+ * Replace or add a provided key/value pair to a tag list
+ *
+ * The list to use for replacement or addition needs to be supplied as first
+ * parameter. If NULL is given here a new list will be created.
+ *
+ * This function will iterate through the whole list in order to check for an
+ * already existing key to replace its value or to ensure the keys are only
+ * added once. This ensures data integraty in contrast to the mosso_tag_add
+ * function, but needs more computational time. In cases you know you are
+ * creating a new list without duplicates use the mosso_tag_add function
+ * instead.
+ *
+ * The returned tag will always be the last in the list, even if the key/value
+ * pair replaced lies within the list. This is done to ensure the returned tag
+ * may be used in conjunction with future calls to mosso_tag_add.
+ */
+mosso_tag_t* mosso_tag_replace_or_add( mosso_tag_t* tag, char* key, char* value ) 
+{
+    // If NULL is provided simply create a new list and return it.
+    if ( tag == NULL ) 
+    {
+        return mosso_tag_add( NULL, key, value );
+    }
+
+    // Check if the key already exists and store the end of the list on our way
+    // through it.
+    {
+        mosso_tag_t* cur         = tag->root;
+        mosso_tag_t* end         = NULL;
+        mosso_tag_t* replacement = NULL;
+
+        while( cur != NULL ) 
+        {
+            end = cur;
+            if ( strcmp( cur->key, key ) == 0 ) 
+            {
+                replacement = cur;
+            }
+            cur = cur->next;
+        }
+
+        // If a replacement needs to be done, simply modify the value and
+        // return the end of the list
+        if ( replacement != NULL ) 
+        {
+            ( replacement->value != NULL ) ? free( replacement->value ) : NULL;
+            replacement->value = strdup( value );
+            return end;
+        }
+
+        // In case the key is not in the list simply append it
+        return mosso_tag_add( end, key, value );
+    }
+}
+
+/** 
+ * Search a tag linked list for a given key and return it. 
+ *
+ * If no entry with the specified key can be found NULL is returned.
+ */
+mosso_tag_t* mosso_get_tag_by_key( mosso_tag_t* tag, char* key ) 
+{
+    mosso_tag_t* cur = tag->root;
+    while( cur != NULL ) 
+    {
+        if ( strcmp( cur->key, key ) == 0 ) 
+        {
+            return cur;
+        }
+        cur = cur->next;
+    }
+}
+
+/**
+ * Free all tags in the given linked list of tags
+ *
+ * This includes the internally stored key and value pairs.
+ */
+void mosso_tag_free_all( mosso_tag_t* tag ) 
+{
+    mosso_tag_t* cur = tag->root;
+    while( cur != NULL )
+    {
+        mosso_tag_t* next = cur->next;
+        (cur->key != NULL) ? free( cur->key ) : NULL;
+        (cur->value != NULL ) ? free( cur->value ): NULL;
+        free( cur );
+        cur = next;
+    }
+}
+
+/**
  * Retrieve a list of objects inside a given container.
  *
  * If NULL is passed to the request_path a list of available
@@ -513,7 +678,7 @@ mosso_object_t* mosso_list_objects( mosso_connection_t* mosso, char* request_pat
 
         {
             // Add the objects to the list
-            int type = ( strlen( request_path ) == 0 ) ? MOSSO_OBJECT_TYPE_CONTAINER : MOSSO_OBJECT_TYPE_OBJECT;
+            int type = ( strlen( request_path ) == 0 ) ? MOSSO_OBJECT_TYPE_CONTAINER : MOSSO_OBJECT_TYPE_OBJECT_OR_VDIR;
             char* prefix    = NULL;
             if ( strlen( request_path ) == 0 || strcmp( request_path, "/" ) == 0 )
             {
