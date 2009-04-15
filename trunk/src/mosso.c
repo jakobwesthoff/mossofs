@@ -37,6 +37,7 @@ long  mosso_error() { return error_code; }
 #define MOSSO_PATH_TYPE_PATH 0
 #define MOSSO_PATH_TYPE_FILE 1
 
+
 static void mosso_authenticate( mosso_connection_t** mosso );
 static mosso_object_t* mosso_create_object_list_from_response_body( mosso_object_t* object, char* response_body, char* path_prefix, int type, int* num );
 static mosso_object_t* mosso_object_add( mosso_object_t* object, char* name, char* request_path, int type );
@@ -44,7 +45,24 @@ static char* mosso_construct_request_url( mosso_connection_t* mosso, char* reque
 static char* mosso_container_from_request_path( char* request_path );
 static mosso_object_meta_t* mosso_object_meta_init();
 static void mosso_object_meta_free( mosso_object_meta_t* meta );
+static inline char* mosso_lowercase( char* s );
 
+/**
+ * Convert a given string to lowercase letters and return a newly allocated one
+ * containing the new one.
+ *
+ * The caller is responsible for freeing the returned string if it is not
+ * needed any longer.
+ */
+static inline char* mosso_lowercase( char* s )
+{
+    char* src = NULL;
+    char* target = NULL;
+    char* tmp_lowercase = (char*)smalloc( sizeof( char ) * strlen( s ) );
+    for( src = s, target = tmp_lowercase; *src!= 0; ++src )
+        *(target++) = tolower( *src );
+    return tmp_lowercase;
+}
 
 /**
  * Authenticate with the mosso service
@@ -470,6 +488,8 @@ static void mosso_object_meta_free( mosso_object_meta_t* meta )
  * this function in order to append a new element. Otherwise the behaviour is
  * undefined.
  *
+ * Tags are case insensitive and will always be stored in lowercase letters.
+ *
  * If the provided tag is NULL a new list will be created and returned.
  *
  * This function does not check if the same key value pair does already exist
@@ -487,9 +507,12 @@ mosso_tag_t* mosso_tag_add( mosso_tag_t* tag, char* key, char* value )
 {
     // Initialize a new tag entry
     mosso_tag_t* new_tag = (mosso_tag_t*)smalloc( sizeof( mosso_tag_t ) );
+    
+    // Lowercase the key
+    char* lkey = mosso_lowercase( key );
 
     // Copy the data to it
-    new_tag->key   = strdup( key );
+    new_tag->key   = lkey;
     new_tag->value = strdup( value );
 
     // Set the root and next accordingly
@@ -514,6 +537,8 @@ mosso_tag_t* mosso_tag_add( mosso_tag_t* tag, char* key, char* value )
  * The list to use for replacement or addition needs to be supplied as first
  * parameter. If NULL is given here a new list will be created.
  *
+ * Tags are case insensitive and will always be stored in lowercase letters.
+ *
  * This function will iterate through the whole list in order to check for an
  * already existing key to replace its value or to ensure the keys are only
  * added once. This ensures data integraty in contrast to the mosso_tag_add
@@ -532,10 +557,13 @@ mosso_tag_t* mosso_tag_replace_or_add( mosso_tag_t* tag, char* key, char* value 
     {
         return mosso_tag_add( NULL, key, value );
     }
+    
 
     // Check if the key already exists and store the end of the list on our way
     // through it.
     {
+        char* lkey = mosso_lowercase( key );
+
         mosso_tag_t* cur         = tag->root;
         mosso_tag_t* end         = NULL;
         mosso_tag_t* replacement = NULL;
@@ -543,12 +571,15 @@ mosso_tag_t* mosso_tag_replace_or_add( mosso_tag_t* tag, char* key, char* value 
         while( cur != NULL ) 
         {
             end = cur;
-            if ( strcmp( cur->key, key ) == 0 ) 
+            if ( strcmp( cur->key, lkey ) == 0 ) 
             {
                 replacement = cur;
             }
             cur = cur->next;
         }
+
+        // The lowercased key is not needed any longer
+        free( lkey );
 
         // If a replacement needs to be done, simply modify the value and
         // return the end of the list
@@ -567,19 +598,27 @@ mosso_tag_t* mosso_tag_replace_or_add( mosso_tag_t* tag, char* key, char* value 
 /** 
  * Search a tag linked list for a given key and return it. 
  *
+ * Tags are case insensitive and will always be stored in lowercase letters.
+ *
  * If no entry with the specified key can be found NULL is returned.
  */
 mosso_tag_t* mosso_get_tag_by_key( mosso_tag_t* tag, char* key ) 
 {
     mosso_tag_t* cur = tag->root;
+    
+    char* lkey = mosso_lowercase( key );
+
     while( cur != NULL ) 
     {
         if ( strcmp( cur->key, key ) == 0 ) 
         {
+            free( lkey );
             return cur;
         }
         cur = cur->next;
     }
+    free( lkey );
+    return NULL;
 }
 
 /**
