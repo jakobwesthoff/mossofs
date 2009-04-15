@@ -45,6 +45,7 @@ static char* mosso_construct_request_url( mosso_connection_t* mosso, char* reque
 static char* mosso_container_from_request_path( char* request_path );
 static mosso_object_meta_t* mosso_object_meta_init();
 static void mosso_object_meta_free( mosso_object_meta_t* meta );
+static char* mosso_name_from_request_path( char* request_path );
 static inline char* mosso_lowercase( char* s );
 
 /**
@@ -456,6 +457,26 @@ static char* mosso_container_from_request_path( char* request_path )
 }
 
 /**
+ * Return the name of an object from a given request path
+ *
+ * The caller needs to free the returned string if it is not needed any longer.
+ */
+static char* mosso_name_from_request_path( char* request_path ) 
+{    
+    char* name  = NULL;
+    char* end   = request_path + strlen( request_path );
+    char* start = end;
+    
+    // Search for the last slash in the path or the path beginning if there are
+    // no slashes in it.
+    while( *start != '/' && start > request_path ) { --start; };
+    
+    name = smalloc( sizeof( char ) * ( end - start + 1 ) );
+    memcpy( name, start, end-start );
+    return name;
+}
+
+/**
  * Initialize a new object meta structure and return it
  */
 static mosso_object_meta_t* mosso_object_meta_init() 
@@ -860,6 +881,150 @@ int mosso_delete_object( mosso_connection_t* mosso, char* request_path )
     
     free( request_url );
     return TRUE;
+}
+
+/**
+ * Isolate all metadata tags available in a list of given simple_curl_headers.
+ *
+ * If no tags are defined in the given header information NULL will be
+ * returned. This is not considered an error, therefore no error information
+ * will be set.
+ */
+static mosso_tag_t* mosso_create_tag_list_from_headers( simple_curl_header_t* header ) 
+{
+    mosso_tag_t* tag = NULL;
+    simple_curl_header_t* cur = header;
+    while ( cur != NULL ) 
+    {
+        // Scan for the mosso header indicating a tag
+        if ( strstr( cur->key, "X-Object-Meta-" ) != NULL ) 
+        {
+            // Found a meta tag. Add it to the list
+            tag = mosso_tag_add( tag, cur->key + 14, cur->value );
+        }
+        cur = cur->next;
+    }
+    return tag;
+}
+
+/**
+ * Retrieve all the available meta information stored for a given request_path.
+ *
+ * If the object could not be found or any other error occurs NULL is returned
+ * and the error information set accordingly.
+ */
+mosso_object_meta_t* mosso_get_object_meta( mosso_connection_t* mosso, char* request_path ) 
+{
+    long response_code = 0;
+    simple_curl_header_t* response_header = NULL;
+    char* request_url = mosso_construct_request_url( mosso, request_path, MOSSO_PATH_TYPE_FILE, NULL );
+
+    if ( ( response_code = simple_curl_request_head( request_url, &response_header, mosso->auth_headers ) ) != 204 ) 
+    {
+        switch( response_code ) 
+        {
+            case 404:
+                set_error( MOSSO_ERROR_NOTFOUND, "The object could not be found." );                
+            break;
+                default:
+                    set_error( response_code, "Statuscode: %ld", response_code );
+        }
+        simple_curl_header_free_all( response_header );
+        free( request_url );
+        return NULL;
+    }
+
+    // Create the new meta object structure based on the retrieved information.
+    {
+        char* tmp = NULL;
+        mosso_object_meta_t* meta = mosso_object_meta_init();
+
+        meta->name         = mosso_name_from_request_path( request_path );
+        meta->request_path = strdup( request_path );
+
+        // Isolate the content type from the header list. The default in case
+        meta->content_type = ( (tmp != NULL) ? ( free( tmp ), tmp = NULL ) : NULL, 
+            ( ( tmp = simple_curl_header_get_by_key( response_header, "Content-Type" ) ) == NULL ) 
+            ? ( asprintf( &tmp, "text/plain" ), tmp ) 
+            : ( tmp ) 
+        );
+
+        // Determine the type of the retrieved object meta data 
+        {
+            char* container = mosso_container_from_request_path( request_path );
+            char* name      = mosso_name_from_request_path( request_path );
+
+            if ( strcmp( container, name ) == 0 )
+            {
+                // If the container and the name are the same we have looked up
+                // a container.
+                meta->type = MOSSO_OBJECT_TYPE_CONTAINER;                
+            }
+            else 
+            {
+                // The requested object is not a container, therefore it might
+                // be a virtual directory or a real mosso object.
+                if ( strcmp( meta->content_type, "application/directory" ) == 0 ) 
+                {
+                    // This is a virtual directory node
+                    meta->type = MOSSO_OBJECT_TYPE_VDIR;
+                }
+                else 
+                {
+                    meta->type = MOSSO_OBJECT_TYPE_OBJECT;
+                }
+            }
+        }
+
+        // Isolate the checksum from the header list. If it is not found a 128
+        // bit string of zeros is used.
+        meta->checksum = ( (tmp != NULL) ? ( free( tmp ), tmp = NULL ) : NULL, 
+            ( ( tmp = simple_curl_header_get_by_key( response_header, "Etag" ) ) == NULL ) 
+            ? ( asprintf( &tmp, "00000000000000000000000000000000" ), tmp ) 
+            : ( tmp ) 
+        );
+
+        // Determine the size of the object
+        {
+            if ( meta->type == MOSSO_OBJECT_TYPE_CONTAINER ) 
+            {
+                // A container provides its size in a special header
+                meta->size = atoll( simple_curl_header_get_by_key( response_header, "X-Container-Bytes-Used" ) );                
+            }
+            else 
+            {
+                // The Content-Length header is used or 0 if it is not provided.
+                meta->size = ( (tmp != NULL) ? ( free( tmp ), tmp = NULL ) : NULL, 
+                    ( ( tmp = simple_curl_header_get_by_key( response_header, "Content-Length" ) ) == NULL ) 
+                    ? ( 0 ) 
+                    : ( atoll( tmp ) ) 
+                );
+            }
+        }
+
+        // The object count is currently only provided for containers sending
+        // the "X-Container-Object-Count" header. If this header is not present
+        // 0 will be assumed.
+        meta->object_count = ( (tmp != NULL) ? ( free( tmp ), tmp = NULL ) : NULL, 
+            ( ( tmp = simple_curl_header_get_by_key( response_header, "X-Container-Object-Count" ) ) == NULL ) 
+            ? ( 0 ) 
+            : ( atoll( tmp ) ) 
+        );
+
+        // Try to isolate possibly available tags
+        meta->tag = mosso_create_tag_list_from_headers( response_header );
+
+        //@TODO: Set the correct mtime if Last modified header is available.
+        //       Parsing of the given time string into a timestamp structure is
+        //       needed.
+
+        // Free the tmp string if it still contains data
+        ( tmp != NULL ) ? ( free( tmp ), tmp = NULL ) : NULL;
+
+        return meta;
+    }
+    
+    return NULL;
 }
 
 /**
