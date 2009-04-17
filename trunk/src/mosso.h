@@ -108,7 +108,7 @@ typedef struct
     char* request_path;
     int type;
     char* content_type;
-    char* checksum;
+    unsigned char checksum[16];
     time_t mtime;
     uint64_t size;    
     uint64_t object_count;

@@ -976,13 +976,23 @@ mosso_object_meta_t* mosso_get_object_meta( mosso_connection_t* mosso, char* req
             }
         }
 
-        // Isolate the checksum from the header list. If it is not found a 128
-        // bit string of zeros is used.
-        meta->checksum = ( (tmp != NULL) ? ( free( tmp ), tmp = NULL ) : NULL, 
-            ( ( tmp = simple_curl_header_get_by_key( response_header, "Etag" ) ) == NULL ) 
-            ? ( asprintf( &tmp, "00000000000000000000000000000000" ), tmp ) 
-            : ( tmp ) 
-        );
+        // Isolate the checksum from the header list. If it is not found a byte
+        // array of zeros is used, which is created during the meta struct
+        // initialization.
+        {
+            char* checksum_string = simple_curl_header_get_by_key( response_header, "Etag" );
+            // If the checksum_string is NULL nothing needs to be done, as the
+            // init value for the checksum after meta structure creation is
+            // already a zero byte array.
+            if ( checksum_string != NULL ) 
+            {
+                // Read the provided hex string and create a byte array out of
+                // it.
+                sscanf( checksum_string, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+                   (unsigned int*)&meta->checksum[0], (unsigned int*)&meta->checksum[1], (unsigned int*)&meta->checksum[2], (unsigned int*)&meta->checksum[3], (unsigned int*)&meta->checksum[4], (unsigned int*)&meta->checksum[5], (unsigned int*)&meta->checksum[6], (unsigned int*)&meta->checksum[7], (unsigned int*)&meta->checksum[8], (unsigned int*)&meta->checksum[9], (unsigned int*)&meta->checksum[10], (unsigned int*)&meta->checksum[11], (unsigned int*)&meta->checksum[12], (unsigned int*)&meta->checksum[13], (unsigned int*)&meta->checksum[14], (unsigned int*)&meta->checksum[15]
+                );                
+            }
+        }
 
         // Determine the size of the object
         {
