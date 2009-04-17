@@ -109,7 +109,7 @@ typedef struct
     int type;
     char* content_type;
     unsigned char checksum[16];
-    time_t mtime;
+    struct tm* mtime;
     uint64_t size;    
     uint64_t object_count;
     mosso_tag_t* tag;
@@ -126,6 +126,7 @@ mosso_tag_t* mosso_tag_replace_or_add( mosso_tag_t* tag, char* key, char* value 
 void mosso_tag_free_all( mosso_tag_t* tag );
 mosso_tag_t* mosso_get_tag_by_key( mosso_tag_t* tag, char* key );
 mosso_object_meta_t* mosso_get_object_meta( mosso_connection_t* mosso, char* request_path ); 
+void mosso_object_meta_free( mosso_object_meta_t* meta );
 
 char* mosso_error_string();
 long mosso_error();

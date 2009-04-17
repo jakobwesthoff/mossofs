@@ -95,7 +95,7 @@ int main( int argc, char **argv )
         curl_global_cleanup();
         exit( 2 );
     }
-
+/*
     {
         mosso_object_t* object = NULL;
         mosso_object_t* cur    = NULL;
@@ -128,18 +128,47 @@ int main( int argc, char **argv )
             mosso_object_free_all( object );
         }
     }
-
+*/
     {
-        if ( mosso_create_directory( mosso, *(argv+optind) ) != TRUE ) 
+        mosso_object_meta_t* meta = mosso_get_object_meta( mosso, *(argv + optind) );
+        if ( meta != NULL ) 
         {
-            printf( "Create directory failed: %s\n", mosso_error_string() );
-        }
+            printf( "name: %s\n", meta->name );
+            printf( "request_path: %s\n", meta->request_path );
+            switch( meta->type ) 
+            {
+                case MOSSO_OBJECT_TYPE_CONTAINER:
+                    printf( "type: CONTAINER\n" );
+                break;
+                case MOSSO_OBJECT_TYPE_OBJECT:
+                    printf( "type: OBJECT\n" );
+                break;
+                case MOSSO_OBJECT_TYPE_VDIR:
+                    printf( "type: VDIR\n" );
+                break;
+            }
+            printf( "content_type: %s\n", meta->content_type );
+            unsigned char* checksum = meta->checksum;
+            printf( "md5: %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n", *(checksum++), *(checksum++), *(checksum++), *(checksum++), *(checksum++), *(checksum++), *(checksum++), *(checksum++), *(checksum++), *(checksum++), *(checksum++), *(checksum++), *(checksum++), *(checksum++), *(checksum++), *(checksum++) );
+            if ( meta->mtime != NULL ) 
+            {
+                char mtime[512];
+                strftime( mtime, 512, "%Y-%m-%d %H:%M:%S", meta->mtime );        
+                printf( "mtime: %s\n", mtime );
+            }
+            else
+            {
+                printf( "No mtime\n" );
+            }
+            printf( "size: %llu\n", meta->size );
+            printf( "object_count: %llu\n", meta->object_count );
 
-        if ( mosso_delete_object( mosso, *(argv+optind) ) != TRUE ) 
+            mosso_object_meta_free( meta );    
+        }
+        else 
         {
-            printf( "Delete object failed: %s\n", mosso_error_string() );
+            printf( "Object not found\n" );
         }
-
     }
 
     mosso_cleanup( mosso );

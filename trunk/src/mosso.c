@@ -22,6 +22,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
+#include <locale.h>
 #include <curl/curl.h>
 
 #include "mosso.h"
@@ -44,7 +46,6 @@ static mosso_object_t* mosso_object_add( mosso_object_t* object, char* name, cha
 static char* mosso_construct_request_url( mosso_connection_t* mosso, char* request_path, int type, char* marker );
 static char* mosso_container_from_request_path( char* request_path );
 static mosso_object_meta_t* mosso_object_meta_init();
-static void mosso_object_meta_free( mosso_object_meta_t* meta );
 static char* mosso_name_from_request_path( char* request_path );
 static inline char* mosso_lowercase( char* s );
 
@@ -471,8 +472,8 @@ static char* mosso_name_from_request_path( char* request_path )
     // no slashes in it.
     while( *start != '/' && start > request_path ) { --start; };
     
-    name = smalloc( sizeof( char ) * ( end - start + 1 ) );
-    memcpy( name, start, end-start );
+    name = smalloc( sizeof( char ) * ( end - start ) );
+    memcpy( name, start + 1, end-start ); /* skip the initial slash */
     return name;
 }
 
@@ -488,14 +489,14 @@ static mosso_object_meta_t* mosso_object_meta_init()
 /**
  * Free a given mosso meta structure including all the linked information
  */
-static void mosso_object_meta_free( mosso_object_meta_t* meta ) 
+void mosso_object_meta_free( mosso_object_meta_t* meta ) 
 {
     if ( meta != NULL ) 
     {
         (meta->name != NULL) ? free( meta->name ) : NULL;
         (meta->request_path != NULL) ? free( meta->request_path ) : NULL;
         (meta->content_type != NULL) ? free( meta->content_type ) : NULL;
-        (meta->checksum != NULL) ? free( meta->checksum ) : NULL;
+        (meta->mtime != NULL) ? free( meta->mtime ) : NULL;
         (meta->tag != NULL) ? mosso_tag_free_all( meta->tag ) : NULL;
         free( meta );
     }
@@ -933,6 +934,7 @@ mosso_object_meta_t* mosso_get_object_meta( mosso_connection_t* mosso, char* req
         free( request_url );
         return NULL;
     }
+    free( request_url );
 
     // Create the new meta object structure based on the retrieved information.
     {
@@ -943,10 +945,10 @@ mosso_object_meta_t* mosso_get_object_meta( mosso_connection_t* mosso, char* req
         meta->request_path = strdup( request_path );
 
         // Isolate the content type from the header list. The default in case
-        meta->content_type = ( (tmp != NULL) ? ( free( tmp ), tmp = NULL ) : NULL, 
+        meta->content_type = (
             ( ( tmp = simple_curl_header_get_by_key( response_header, "Content-Type" ) ) == NULL ) 
-            ? ( asprintf( &tmp, "text/plain" ), tmp ) 
-            : ( tmp ) 
+            ? ( strdup( "text/plain" ) ) 
+            : ( strdup( tmp ) ) 
         );
 
         // Determine the type of the retrieved object meta data 
@@ -988,9 +990,15 @@ mosso_object_meta_t* mosso_get_object_meta( mosso_connection_t* mosso, char* req
             {
                 // Read the provided hex string and create a byte array out of
                 // it.
+                unsigned int md5[16];
+                int i = 0;
                 sscanf( checksum_string, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
-                   (unsigned int*)&meta->checksum[0], (unsigned int*)&meta->checksum[1], (unsigned int*)&meta->checksum[2], (unsigned int*)&meta->checksum[3], (unsigned int*)&meta->checksum[4], (unsigned int*)&meta->checksum[5], (unsigned int*)&meta->checksum[6], (unsigned int*)&meta->checksum[7], (unsigned int*)&meta->checksum[8], (unsigned int*)&meta->checksum[9], (unsigned int*)&meta->checksum[10], (unsigned int*)&meta->checksum[11], (unsigned int*)&meta->checksum[12], (unsigned int*)&meta->checksum[13], (unsigned int*)&meta->checksum[14], (unsigned int*)&meta->checksum[15]
+                   &md5[15], &md5[14], &md5[13], &md5[12], &md5[11], &md5[10], &md5[9], &md5[8], &md5[7], &md5[6], &md5[5], &md5[4], &md5[3], &md5[2], &md5[1], &md5[0]
                 );                
+                for ( i=0; i<16; ++i ) 
+                {
+                    meta->checksum[i] = (char)md5[i];
+                }
             }
         }
 
@@ -1004,7 +1012,7 @@ mosso_object_meta_t* mosso_get_object_meta( mosso_connection_t* mosso, char* req
             else 
             {
                 // The Content-Length header is used or 0 if it is not provided.
-                meta->size = ( (tmp != NULL) ? ( free( tmp ), tmp = NULL ) : NULL, 
+                meta->size = (  
                     ( ( tmp = simple_curl_header_get_by_key( response_header, "Content-Length" ) ) == NULL ) 
                     ? ( 0 ) 
                     : ( atoll( tmp ) ) 
@@ -1015,7 +1023,7 @@ mosso_object_meta_t* mosso_get_object_meta( mosso_connection_t* mosso, char* req
         // The object count is currently only provided for containers sending
         // the "X-Container-Object-Count" header. If this header is not present
         // 0 will be assumed.
-        meta->object_count = ( (tmp != NULL) ? ( free( tmp ), tmp = NULL ) : NULL, 
+        meta->object_count = (  
             ( ( tmp = simple_curl_header_get_by_key( response_header, "X-Container-Object-Count" ) ) == NULL ) 
             ? ( 0 ) 
             : ( atoll( tmp ) ) 
@@ -1024,13 +1032,27 @@ mosso_object_meta_t* mosso_get_object_meta( mosso_connection_t* mosso, char* req
         // Try to isolate possibly available tags
         meta->tag = mosso_create_tag_list_from_headers( response_header );
 
-        //@TODO: Set the correct mtime if Last modified header is available.
-        //       Parsing of the given time string into a timestamp structure is
-        //       needed.
+        // Try to isolate the mtime
+        {
+            char* mtime = simple_curl_header_get_by_key( response_header, "Last-Modified" );
+            // If it is NULL the associated mtime struct will simply be null in
+            // the meta struct.
+            if( mtime != NULL ) 
+            {
+                char* old_locale = setlocale( LC_TIME, NULL );
+                setlocale( LC_TIME, "en_US" );
+                meta->mtime = (struct tm*)smalloc( sizeof( struct tm ) );
+                if ( strptime( mtime, "%a, %d %b %Y %H:%M:%S %Z", meta->mtime ) == 0 ) 
+                {
+                    setlocale( LC_TIME, old_locale );
+                    free( meta->mtime );
+                    meta->mtime = NULL;
+                }
+                setlocale( LC_TIME, old_locale );
+            }
+        }
 
-        // Free the tmp string if it still contains data
-        ( tmp != NULL ) ? ( free( tmp ), tmp = NULL ) : NULL;
-
+        simple_curl_header_free_all( response_header );
         return meta;
     }
     
