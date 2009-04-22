@@ -10,7 +10,7 @@ SRC := src/mossofs.c \
 
 CFLAGS := $(shell pkg-config --cflags $(LIBS)) \
 		  $(shell curl-config --cflags) \
-		  -DFUSE_USE_VERSION=22
+		  -DFUSE_USE_VERSION=26
 
 LDFLAGS := $(shell pkg-config --libs $(LIBS)) \
 		   $(shell curl-config --libs)
