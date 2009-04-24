@@ -134,7 +134,7 @@ static void mosso_authenticate( mosso_connection_t** mosso )
  */
 mosso_connection_t* mosso_init( char* username, char* key )
 {
-    mosso_connection_t* mosso = smalloc( sizeof( mosso_connection_t ) );
+    mosso_connection_t* mosso = snew( mosso_connection_t );
     mosso->username = strdup( username );
     mosso->key      = strdup( key );
     mosso_authenticate( &mosso );
@@ -152,7 +152,7 @@ mosso_connection_t* mosso_init( char* username, char* key )
 static mosso_object_t* mosso_object_add( mosso_object_t* object, char* name, char* request_path, int type )
 {
     // Initialize a new object entry
-    mosso_object_t* new_object = (mosso_object_t*)smalloc( sizeof( mosso_object_t ) );
+    mosso_object_t* new_object = snew( mosso_object_t );
 
     // Copy the data to it
     new_object->type         = type;
@@ -471,7 +471,7 @@ static char* mosso_name_from_request_path( char* request_path )
  */
 static mosso_object_meta_t* mosso_object_meta_init() 
 {
-    mosso_object_meta_t* meta = ( mosso_object_meta_t* )smalloc( sizeof( mosso_object_meta_t ) );
+    mosso_object_meta_t* meta = snew( mosso_object_meta_t );
     return meta;
 }
 
@@ -517,7 +517,7 @@ void mosso_object_meta_free( mosso_object_meta_t* meta )
 mosso_tag_t* mosso_tag_add( mosso_tag_t* tag, char* key, char* value ) 
 {
     // Initialize a new tag entry
-    mosso_tag_t* new_tag = (mosso_tag_t*)smalloc( sizeof( mosso_tag_t ) );
+    mosso_tag_t* new_tag = snew( mosso_tag_t );
     
     // Lowercase the key
     char* lkey = mosso_lowercase( key );
@@ -1026,7 +1026,7 @@ mosso_object_meta_t* mosso_get_object_meta( mosso_connection_t* mosso, char* req
             {
                 char* old_locale = setlocale( LC_TIME, NULL );
                 setlocale( LC_TIME, "en_US" );
-                meta->mtime = (struct tm*)smalloc( sizeof( struct tm ) );
+                meta->mtime = snew( struct tm );
                 if ( strptime( mtime, "%a, %d %b %Y %H:%M:%S %Z", meta->mtime ) == 0 ) 
                 {
                     setlocale( LC_TIME, old_locale );

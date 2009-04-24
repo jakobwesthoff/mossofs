@@ -25,6 +25,7 @@
 #include <regex.h>
 #include <curl/curl.h>
 
+#include "salloc.h"
 #include "simple_curl.h"
 
 /**
@@ -176,7 +177,7 @@ static size_t simple_curl_read_body( void *ptr, size_t size, size_t nmemb, void 
  */
 static simple_curl_receive_body_t* simple_curl_receive_body_init()
 {
-    simple_curl_receive_body_t* body = (simple_curl_receive_body_t*)smalloc( sizeof( simple_curl_receive_body_t ) );
+    simple_curl_receive_body_t* body = snew( simple_curl_receive_body_t );
     body->ptr = (char*)smalloc( sizeof( char ) );
     body->ptr[0] = 0;
     body->length = 0;
@@ -206,7 +207,7 @@ static void simple_curl_receive_body_free( simple_curl_receive_body_t* body )
  */
 static simple_curl_receive_header_stream_t* simple_curl_receive_header_stream_init()
 {
-    simple_curl_receive_header_stream_t* stream = (simple_curl_receive_header_stream_t*)smalloc( sizeof( simple_curl_receive_header_stream_t ) );
+    simple_curl_receive_header_stream_t* stream = snew( simple_curl_receive_header_stream_t );
     stream->ptr = NULL;
     stream->length = 0;
     return stream;
@@ -261,7 +262,7 @@ static void simple_curl_prepare_curl_headers( simple_curl_header_t* headers, str
 simple_curl_header_t* simple_curl_header_add( simple_curl_header_t* header, char* key, char* value )
 {
     // Initialize a new header entry
-    simple_curl_header_t* new_header = (simple_curl_header_t*)smalloc( sizeof( simple_curl_header_t ) );
+    simple_curl_header_t* new_header = snew( simple_curl_header_t );
 
     // Copy the data to it
     new_header->key   = strdup( key );
@@ -570,7 +571,7 @@ long simple_curl_request_complex( int operation, char* url, char** response_body
  */
 static simple_curl_request_body_t* simple_curl_request_body_init( char* data, long size )
 {
-    simple_curl_request_body_t* body = (simple_curl_request_body_t*)smalloc( sizeof( simple_curl_request_body_t ) );
+    simple_curl_request_body_t* body = snew( simple_curl_request_body_t );
     body->ptr  = data;
     body->length = ( size == 0 ) ? strlen( data ) : size;
 

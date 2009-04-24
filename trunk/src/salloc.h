@@ -26,4 +26,10 @@ void* smalloc( size_t size );
 void* scalloc( size_t nelem, size_t elsize );
 void* srealloc( void* ptr, size_t size );
 
+#define snewlen( t, n ) \
+    (t*)smalloc( sizeof( t ) * n )
+
+#define snew( t ) \
+    snewlen( t, 1 )
+
 #endif
