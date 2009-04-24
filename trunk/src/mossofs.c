@@ -28,10 +28,18 @@
 #include <fcntl.h>
 #include <getopt.h>
 
+#include "salloc.h"
 #include "mosso.h"
 
-static char* mosso_username = NULL;
-static char* mosso_key      = NULL;
+typedef struct 
+{
+    char* username;
+    char* apikey;
+} mossofs_options_t;
+
+static mossofs_options_t* mossofs_options = NULL;
+
+#define MOSSOFS_OPT( x, y, z ) {x, offsetof( mossofs_options_t, y ), z }
 
 #define MOSSO_CONNECTION(m) \
     mosso_connection_t* m = NULL; \
@@ -57,9 +65,12 @@ static void* mossofs_init( struct fuse_conn_info *conn )
     // Initialize the cURL library enabling SSL support
     curl_global_init( CURL_GLOBAL_SSL );
 
-    if ( ( mosso = mosso_init( mosso_username, mosso_key ) ) == NULL )
+    if ( ( mosso = mosso_init( mossofs_options->username, mossofs_options->apikey ) ) == NULL )
     {
         printf( "The connection to Mosso Cloudspace could not be established: %s\n", mosso_error_string() );
+        free( mossofs_options->username );
+        free( mossofs_options->apikey );
+        free( mossofs_options );
         curl_global_cleanup();
         exit( 2 );
     }
@@ -78,6 +89,11 @@ static void mossofs_destroy( void* mosso )
 {
     mosso_cleanup( ( mosso_connection_t* )mosso );
     curl_global_cleanup();
+
+    // Free the options struct
+    free( mossofs_options->username );
+    free( mossofs_options->apikey );
+    free( mossofs_options );
 }
 
 /**
@@ -93,8 +109,9 @@ static int mossofs_getattr( const char *path, struct stat *stbuf )
     DEBUGLOG( "getattr(%d): %s\n",id, path );
 
     // Null the stats buffer
-//    memset( stbuf, 0, sizeof( struct stat ) );
+    memset( stbuf, 0, sizeof( struct stat ) );
 
+    // Directory stats for the mountpoint
     if ( strcmp( path, "/" ) == 0 ) 
     {
         stbuf->st_mode  = S_IFDIR | 0755;
@@ -192,7 +209,56 @@ static void show_usage( char* executable )
     printf( "Mossofs FUSE module version 0.1\n" );
     printf( "Jakob Westhoff <jakob@westhoffswelt.de>\n\n" );
     printf( "Usage:\n" );
-    printf( "%s --username=<MOSSO_USERNAME> --key=MOSSO_APIKEY <MOUNTPOINT>\n\n", executable );
+    printf( "%s mosso_username@mosso_apikey <MOUNTPOINT>\n\n", executable );
+}
+
+/**
+ * Function called by the fuse_parse_opts function every time a option is read
+ *
+ * This function is used to read the usename and apikey string and split it at
+ * the @ char into the two different strings needed for later processing.
+ * Furthermore it stores this values in the mossofs_options structure.
+ */
+int mossofs_parse_opts( void* data, const char* arg, int key, struct fuse_args *outargs ) 
+{
+    switch( key ) 
+    {
+        case FUSE_OPT_KEY_OPT:
+            /* Some option defined in the mossofs_opts array used to call the
+             * appropriate fuse function */
+            /* Just keep the option and let fuse handle it */
+            return 1;
+        case FUSE_OPT_KEY_NONOPT:
+            /* This is the api key username string which should only occur once */
+            if ( mossofs_options->username == NULL && mossofs_options->apikey == NULL ) 
+            {
+                const char* end = arg;
+
+                // Find the splitting @ character
+                while( *end != 0 && *end != '@' ) { ++end; }
+
+                // If we are at the end of the string something bad happend
+                if ( *end == 0 ) 
+                {
+                    fprintf( stderr, "'%s' is not a valid username@apikey string\n", arg );
+                    return 0;
+                }
+
+                mossofs_options->username = (char*)smalloc( end-arg + 1 );
+                mossofs_options->apikey   = (char*)smalloc( strlen( arg ) - (size_t)(end-arg) );
+                memcpy( mossofs_options->username, arg, end-arg );
+                memcpy( mossofs_options->apikey, ++end, strlen( arg ) - (size_t)(end-arg) );
+
+                return 0;
+            }
+
+            // Otherwise keep the option. It might be the mountpoint
+            return 1;
+            
+        default:
+            fprintf( stderr, "Unknown option specified: %s\n", arg );
+            return 0;
+    }
 }
 
 /**
@@ -206,35 +272,25 @@ int main( int argc, char **argv )
 {
     INIT_DEBUGLOG;
 
-    // Define all possible commandline options
-    struct option long_options[] =
-    {
-        { "username", required_argument, NULL, 'u' },
-        { "key",      required_argument, NULL, 'k' },
-        { 0, 0, 0, 0 }
+    struct fuse_opt mossofs_opts[] = {
+        FUSE_OPT_END
     };
 
-    {
-        int index = 0;
-        int option = 0;
-        while( ( option = getopt_long( argc, argv, "u:k:", long_options, &index ) ) != -1 )
-        {
-            switch ( option )
-            {
-                case 'u':
-                    mosso_username = strdup( optarg );
-                break;
-                case 'k':
-                    mosso_key = strdup( optarg );
-                break;
-            }
-        }
+    struct fuse_args args = FUSE_ARGS_INIT( argc, argv );
 
-        if ( mosso_username == NULL || mosso_key == NULL || argc != optind + 1 )
-        {
-            show_usage( argv[0] );
-            exit( 1 );
-        }
+    mossofs_options = snew( mossofs_options_t );
+
+    if( fuse_opt_parse( &args, mossofs_options, mossofs_opts, mossofs_parse_opts ) == -1 ) 
+    {
+        fprintf( stderr, "Error parsing commandline options\n" );
+        exit( 1 );
+    }
+    
+    if( mossofs_options->username == NULL || mossofs_options->apikey == NULL ) 
+    {
+        free( mossofs_options );
+        show_usage( argv[0] );
+        exit( 1 );
     }
 
     // Initialize and call the fuse handler
@@ -247,8 +303,6 @@ int main( int argc, char **argv )
             .readdir = mossofs_readdir,
         };
 
-        // optind (-/+) 1 is an ugly hack. A syntax to specify the mossofs
-        // filesystem with one initial parameter needs to be introduced here.
-        return fuse_main( argc - optind + 1, argv + optind - 1, &mossofs_operations, NULL );
+        return fuse_main( args.argc, args.argv, &mossofs_operations, NULL );
     }
 }
