@@ -139,17 +139,6 @@ mosso_connection_t* mosso_init( char* username, char* key )
     mosso->key      = strdup( key );
     mosso_authenticate( &mosso );
 
-    // DEBUG
-    printf(
-        "username: %s\nkey: %s\nstorage_token: %s\nauth_token: %s\nstorage_url: %s\ncdn_management_url: %s\n",
-        mosso->username,
-        mosso->key,
-        mosso->storage_token,
-        mosso->auth_token,
-        mosso->storage_url,
-        mosso->cdn_management_url
-    );
-
     return mosso;
 }
 
@@ -710,9 +699,6 @@ mosso_object_t* mosso_list_objects( mosso_connection_t* mosso, char* request_pat
             request_url = mosso_construct_request_url( mosso, request_path, MOSSO_PATH_TYPE_PATH, object->name );
         }
 
-        printf( "Provided Path: %s\n", request_path );
-        printf( "Requesting: %s\n", request_url );
-
         if ( ( response_code = simple_curl_request_get( request_url, &response_body, NULL, mosso->auth_headers ) ) != 200 )
         {
             // Something different than a 200 has been returned this might
@@ -811,8 +797,6 @@ int mosso_create_directory( mosso_connection_t* mosso, char* request_path )
     // for creation.
     char* request_url = mosso_construct_request_url( mosso, request_path, MOSSO_PATH_TYPE_FILE, NULL );
 
-    printf( "Requesting: PUT %s\n", request_url );
-
     simple_curl_header_t* header = simple_curl_header_copy( mosso->auth_headers );
     header = simple_curl_header_add( header, "Content-Length", "0" );
     header = simple_curl_header_add( header, "Content-Type", "application/directory" );
@@ -863,8 +847,6 @@ int mosso_delete_object( mosso_connection_t* mosso, char* request_path )
     // with a special content type.
     char* request_url = mosso_construct_request_url( mosso, request_path, MOSSO_PATH_TYPE_FILE, NULL );
 
-    printf( "Requesting: DELETE %s\n", request_url );
-    
     if ( ( response_code = simple_curl_request_delete( request_url, NULL, mosso->auth_headers ) ) != 204 ) 
     {
         switch( response_code ) 
@@ -913,6 +895,9 @@ static mosso_tag_t* mosso_create_tag_list_from_headers( simple_curl_header_t* he
  *
  * If the object could not be found or any other error occurs NULL is returned
  * and the error information set accordingly.
+ *
+ * The caller is responsible to free the given meta_data struct if it is not
+ * needed any longer.
  */
 mosso_object_meta_t* mosso_get_object_meta( mosso_connection_t* mosso, char* request_path ) 
 {
@@ -1060,6 +1045,28 @@ mosso_object_meta_t* mosso_get_object_meta( mosso_connection_t* mosso, char* req
 }
 
 /**
+ * Read a given amount of bytes from a mosso object and put it into a given
+ * buffer
+ *
+ * The given buffer needs to be large enough to hold the requested information.
+ * 
+ * The amount of read data will be returned by the function after it has been
+ * written to the buffer. If the amount of data written is smaller than the
+ * one requested end of file is indicated.
+ *
+ * An optional offset may be specified which indicates where to start read the
+ * object
+ *
+ * Take into account that every request has the overhead of a full http
+ * request, which implies the request size should not be chosen too low.
+ */
+size_t mosso_read_object( mosso_connection_t* mosso, char* request_path, size_t size, char* buffer, size_t offset ) 
+{
+    
+
+}
+
+/**
  * Free a given mosso connection structure
  */
 void mosso_cleanup( mosso_connection_t* mosso )
@@ -1076,4 +1083,3 @@ void mosso_cleanup( mosso_connection_t* mosso )
         free( mosso );
     }
 }
-
