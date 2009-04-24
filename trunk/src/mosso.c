@@ -209,6 +209,7 @@ static mosso_object_t* mosso_create_object_list_from_response_body( mosso_object
     while( TRUE )
     {
         char* request_path = NULL;
+        char* fullname     = NULL;
         char* name         = NULL;
         char* start = cur;
         char* end   = cur;
@@ -217,11 +218,15 @@ static mosso_object_t* mosso_create_object_list_from_response_body( mosso_object
         while( *end != '\n' && *end != 0 )  { ++end; }
 
         // Allocate some space for the new name and copy it to the target
-        name = (char*)smalloc( sizeof( char ) * ( end - start + 1 ) );
-        memcpy( name, start, end - start );
+        fullname = (char*)smalloc( sizeof( char ) * ( end - start + 1 ) );
+        memcpy( fullname, start, end - start );
 
         // Create the needed request path
-        asprintf( &request_path, "%s%s", path_prefix, name );
+        asprintf( &request_path, "%s%s", path_prefix, fullname );
+
+        // Isolate the objects name. If a vdir is listed the vdir path is part
+        // of the fullname
+        name = mosso_name_from_request_path( fullname );
 
         // Add entry to the list
         object = mosso_object_add( object, name, request_path, type );
@@ -229,6 +234,7 @@ static mosso_object_t* mosso_create_object_list_from_response_body( mosso_object
 
         // Free all the temporary created strings
         free( name );
+        free( fullname );
         free( request_path );
 
         if ( *end == 0 || *(end+1) == 0 ) /* Stop char or next start char is 0 stop here */
@@ -461,8 +467,9 @@ static char* mosso_name_from_request_path( char* request_path )
     // no slashes in it.
     while( *start != '/' && start > request_path ) { --start; };
     
-    name = smalloc( sizeof( char ) * ( end - start ) );
-    memcpy( name, start + 1, end-start ); /* skip the initial slash */
+    ( *start == '/' ) ? ( ++start ) : NULL;
+    name = smalloc( sizeof( char ) * ( end - start + 1 ) );
+    memcpy( name, start, end-start ); /* skip the initial slash */
     return name;
 }
 
