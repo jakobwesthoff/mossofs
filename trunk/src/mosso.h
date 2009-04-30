@@ -124,7 +124,7 @@ void mosso_cleanup( mosso_connection_t* mosso );
 mosso_tag_t* mosso_tag_add( mosso_tag_t* tag, char* key, char* value ); 
 mosso_tag_t* mosso_tag_replace_or_add( mosso_tag_t* tag, char* key, char* value );
 void mosso_tag_free_all( mosso_tag_t* tag );
-mosso_tag_t* mosso_get_tag_by_key( mosso_tag_t* tag, char* key );
+char* mosso_tag_get_by_key( mosso_tag_t* tag, char* key );
 mosso_object_meta_t* mosso_get_object_meta( mosso_connection_t* mosso, char* request_path ); 
 void mosso_object_meta_free( mosso_object_meta_t* meta );
 

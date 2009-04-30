@@ -614,13 +614,13 @@ mosso_tag_t* mosso_tag_replace_or_add( mosso_tag_t* tag, char* key, char* value 
 }
 
 /** 
- * Search a tag linked list for a given key and return it. 
+ * Search a tag linked list for a given key and return its value string. 
  *
  * Tags are case insensitive and will always be stored in lowercase letters.
  *
  * If no entry with the specified key can be found NULL is returned.
  */
-mosso_tag_t* mosso_get_tag_by_key( mosso_tag_t* tag, char* key ) 
+char* mosso_tah_get_by_key( mosso_tag_t* tag, char* key ) 
 {
     mosso_tag_t* cur = tag->root;
     
@@ -631,7 +631,7 @@ mosso_tag_t* mosso_get_tag_by_key( mosso_tag_t* tag, char* key )
         if ( strcmp( cur->key, key ) == 0 ) 
         {
             free( lkey );
-            return cur;
+            return cur->value;
         }
         cur = cur->next;
     }
