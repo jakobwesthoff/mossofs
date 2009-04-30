@@ -229,6 +229,10 @@ static void simple_curl_receive_header_stream_free( simple_curl_receive_header_s
     }
 }
 
+/**
+ * Convert simple curl headers into a curl_headers structure to be used for the
+ * curl request directly.
+ */
 static void simple_curl_prepare_curl_headers( simple_curl_header_t* headers, struct curl_slist** curl_headers )
 {
     simple_curl_header_t* cur = headers->root;
