@@ -22,6 +22,8 @@
  * Copyright (C) 2009 Jakob Westhoff <jakob@westhoffswelt.de>
  */
 
+#include <glib.h>
+
 typedef void (*cache_object_free_func)( char* prefix, char* identifier, void* ptr );
 
 typedef struct 

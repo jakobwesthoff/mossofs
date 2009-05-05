@@ -183,7 +183,7 @@ void* cache_get_object( cache_t* cache, const char* prefix, const char* identifi
     }
     
     // Check if we are still in an acceptable ttl lifespan
-    if ( obj->timestamp > now + cache->ttl ) 
+    if ( obj->timestamp + cache->ttl < now ) 
     {
         // The object does not live any longer kill it
         if ( cache->object_free_func != NULL ) 
