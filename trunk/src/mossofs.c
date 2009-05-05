@@ -31,19 +31,52 @@
 #include "salloc.h"
 #include "mosso.h"
 
+/**
+ * Option structure used to store and transport the initially read fuse options
+ */
 typedef struct 
 {
     char* username;
     char* apikey;
 } mossofs_options_t;
 
+/**
+ * Filehandle structure used to store informations between different read and
+ * write calls.
+ *
+ * The structure is created upon an open call and destroyed open a close call.
+ * It is then stored in the fuse fh structure member.
+ *
+ * If the file does not exist upon a call to open the meta member will be set
+ * to NULL. Furthermore the is_new flag is set to true.
+ */
+typedef struct
+{
+    int is_new;
+    mosso_object_meta_t* meta; 
+} mossofs_filehandle_t;
+
+/**
+ * Global pointer to a mosso option structure
+ */
 static mossofs_options_t* mossofs_options = NULL;
 
 #define MOSSOFS_OPT( x, y, z ) {x, offsetof( mossofs_options_t, y ), z }
 
+/**
+ * Retrieve the stored mosso_connection_t object from the current fuse_context
+ */
 #define MOSSO_CONNECTION(m) \
     mosso_connection_t* m = NULL; \
     { struct fuse_context* context = fuse_get_context(); m = (mosso_connection_t*)context->private_data;};
+
+/**
+ * Retrieve the filehandle stored in a fuse_file_info structure
+ */
+static inline mossofs_filehandle_t* get_mossofs_filehandle( struct fuse_file_info *fi )
+{
+    return ( mossofs_filehandle_t* ) ( uintptr_t ) fi->fh;
+}
 
 #define INIT_DEBUGLOG debuglog = fopen( "debug.log", "a" )
 #define DEBUGLOG(s, ...) fprintf( debuglog, s, ##__VA_ARGS__ ); fflush( debuglog )
@@ -202,6 +235,77 @@ static int mossofs_readdir( const char *path, void *buf, fuse_fill_dir_t filler,
 }
 
 /**
+ * Called every time a file is being opened
+ */
+static int mossofs_open( const char *path, struct fuse_file_info *fi ) 
+{
+    MOSSO_CONNECTION( mosso );
+    mosso_object_meta_t* meta = NULL;    
+
+    DEBUGLOG( "open: %s\n", path );
+
+    if ( ( fi->flags & 3 ) != O_RDONLY ) 
+    {
+        return -EACCES;
+    }
+
+    // Try to retrieve meta information for the given filepath
+    if ( ( meta = mosso_get_object_meta( mosso, (char*)path ) ) == NULL ) 
+    {
+        // The requested object is not existant
+        return -ENOENT;
+    }
+
+    // Allocate a new filehandle structure and store the retrieved metadata
+    // information.
+    // @TODO: At the moment only existing files can be read. New files can not
+    // be created. This should be changed.
+    {
+        mossofs_filehandle_t* filehandle = snew( mossofs_filehandle_t );
+        filehandle->meta = meta;
+        fi->fh = (unsigned long)(filehandle);
+    }
+    
+    return 0;
+}
+
+/**
+ * Called every time data needs to be read from a file
+ */
+static int mossofs_read( const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi ) 
+{
+    MOSSO_CONNECTION( mosso );
+    mossofs_filehandle_t* filehandle = get_mossofs_filehandle( fi );
+
+    size_t read_bytes = 0;
+    uint64_t bytes_to_read = ( filehandle->meta->size < offset + size )
+                           ? ( filehandle->meta->size - offset )
+                           : ( size );
+
+    DEBUGLOG( "read( %s, %ld, %ld )\n", path, (long)size, (long)offset );
+
+    if ( ( read_bytes = mosso_read_object( mosso, (char*)path, bytes_to_read, buf, offset ) ) == -1 ) 
+    {
+        return -ENOENT;
+    }
+
+    DEBUGLOG( "read_bytes: %ld\n", (long)read_bytes );
+
+    return read_bytes;
+}
+
+/**
+ * Called every time a opened file is released. This function will only called
+ * once for each open call.
+ */
+static int mossofs_release( const char* path, struct fuse_file_info* fi ) 
+{
+    mossofs_filehandle_t* filehandle = get_mossofs_filehandle( fi );
+    ( filehandle->meta != NULL ) ? ( mosso_object_meta_free( filehandle->meta ) ) : NULL;
+    free( filehandle );
+}
+
+/**
  * Show the usage message of this application
  */
 static void show_usage( char* executable )
@@ -301,8 +405,12 @@ int main( int argc, char **argv )
             .destroy = mossofs_destroy,
             .getattr = mossofs_getattr,
             .readdir = mossofs_readdir,
+            .open    = mossofs_open,
+            .read    = mossofs_read,
+            .release = mossofs_release            
         };
 
         return fuse_main( args.argc, args.argv, &mossofs_operations, NULL );
     }
+
 }

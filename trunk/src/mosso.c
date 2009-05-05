@@ -1066,11 +1066,67 @@ mosso_object_meta_t* mosso_get_object_meta( mosso_connection_t* mosso, char* req
  *
  * Take into account that every request has the overhead of a full http
  * request, which implies the request size should not be chosen too low.
+ *
+ * -1 will be returned if the object to be read can not be found or any other
+ *  error occurs.
+ *
+ * The specified size + offset value is not allowed to be larger than actual
+ * filesize of the requested mosso object.
  */
-size_t mosso_read_object( mosso_connection_t* mosso, char* request_path, size_t size, char* buffer, size_t offset ) 
+size_t mosso_read_object( mosso_connection_t* mosso, char* request_path, size_t size, char* buffer, off_t offset ) 
 {
-    
+    char* response_body = NULL;
+    long response_code  = 0;
+    simple_curl_header_t* response_headers = NULL;
+    simple_curl_header_t* request_headers  = simple_curl_header_copy( mosso->auth_headers );
+    char* request_url = mosso_construct_request_url( mosso, request_path, MOSSO_PATH_TYPE_FILE, NULL );
 
+    printf( "Requesting: %s\n", request_url );
+    
+    // Construct the needed range header
+    {
+        char* range = NULL;
+        long  end   = offset + size - 1;
+        asprintf( &range, "bytes=%ld-%ld", (long)offset, (long)end );
+        simple_curl_header_add( request_headers, "Range", range );
+        printf( "range: %s\n", range );
+        free( range );
+    }
+
+    //@TODO: Implement and use a simple_curl function which writes directly to
+    //the given buffer instead of allocating space for a new one first.
+
+    if ( ( response_code = simple_curl_request_get( request_url, &response_body, &response_headers, request_headers ) ) != 206 )
+    {
+        switch( response_code ) 
+        {
+            case 404:
+                set_error( MOSSO_ERROR_NOTFOUND, "The object could not be found." );                
+            break;
+                default:
+                    set_error( response_code, "Statuscode: %ld", response_code );
+        }
+        printf( "error: %ld, %s\n", response_code, response_body );
+        free( request_url );
+        simple_curl_header_free_all( request_headers );
+        ( response_headers != NULL ) ? simple_curl_header_free_all( response_headers ) : NULL;
+        ( response_body != NULL )    ? ( free( response_body ) ) : NULL;
+        return -1;
+    }
+    free( request_url );
+    simple_curl_header_free_all( request_headers );
+
+    // Copy the received data to the provided buffer and return the retrieved
+    // data length 
+    {
+        uint64_t received_bytes = atoll( simple_curl_header_get_by_key( response_headers, "Content-Length" ) );
+        uint64_t bytes_to_copy  = ( received_bytes > size ) ? size : received_bytes;
+        printf( "copy %llu from %llu bytes\n", bytes_to_copy, received_bytes );
+        memcpy( buffer, response_body, bytes_to_copy );
+        simple_curl_header_free_all( response_headers );
+        free( response_body );
+        return bytes_to_copy;
+    }
 }
 
 /**

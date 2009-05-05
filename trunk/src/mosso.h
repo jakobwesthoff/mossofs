@@ -126,6 +126,7 @@ mosso_tag_t* mosso_tag_replace_or_add( mosso_tag_t* tag, char* key, char* value 
 void mosso_tag_free_all( mosso_tag_t* tag );
 char* mosso_tag_get_by_key( mosso_tag_t* tag, char* key );
 mosso_object_meta_t* mosso_get_object_meta( mosso_connection_t* mosso, char* request_path ); 
+size_t mosso_read_object( mosso_connection_t* mosso, char* request_path, size_t size, char* buffer, off_t offset ); 
 void mosso_object_meta_free( mosso_object_meta_t* meta );
 
 char* mosso_error_string();
