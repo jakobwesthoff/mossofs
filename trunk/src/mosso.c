@@ -621,7 +621,7 @@ mosso_tag_t* mosso_tag_replace_or_add( mosso_tag_t* tag, char* key, char* value 
  *
  * If no entry with the specified key can be found NULL is returned.
  */
-char* mosso_tah_get_by_key( mosso_tag_t* tag, char* key ) 
+char* mosso_tag_get_by_key( mosso_tag_t* tag, char* key ) 
 {
     mosso_tag_t* cur = tag->root;
     

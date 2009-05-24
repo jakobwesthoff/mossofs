@@ -196,6 +196,11 @@ static int mossofs_getattr( const char *path, struct stat *stbuf )
         stbuf->st_mode  = S_IFREG | 0444;
         stbuf->st_nlink = 2; /* Link into the dir and link inside the dir (.) */
         stbuf->st_size  = meta->size;
+
+        if ( meta->mtime != NULL ) 
+        {
+            stbuf->st_mtime = mktime( meta->mtime );
+        }
     }
     else 
     {
@@ -206,6 +211,12 @@ static int mossofs_getattr( const char *path, struct stat *stbuf )
         if ( meta->type == MOSSO_OBJECT_TYPE_CONTAINER ) 
         {
             stbuf->st_size = meta->size;
+        }
+
+        // MTime is available for VDIRs but not for containers
+        if ( meta->mtime != NULL ) 
+        {
+            stbuf->st_mtime = mktime( meta->mtime );
         }
     }   
 
