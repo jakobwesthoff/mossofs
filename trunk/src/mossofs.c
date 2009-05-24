@@ -39,6 +39,8 @@ typedef struct
 {
     char* username;
     char* apikey;
+    uid_t uid;
+    gid_t gid;
 } mossofs_options_t;
 
 /**
@@ -166,6 +168,11 @@ static int mossofs_getattr( const char *path, struct stat *stbuf )
 
     // Null the stats buffer
     memset( stbuf, 0, sizeof( struct stat ) );
+
+    // Always set the uid and gid to the one of the user who mounted the
+    // mossofs
+    stbuf->st_uid = mossofs_options->uid;
+    stbuf->st_gid = mossofs_options->gid;
 
     // Directory stats for the mountpoint
     if ( strcmp( path, "/" ) == 0 ) 
@@ -429,6 +436,11 @@ int main( int argc, char **argv )
         show_usage( argv[0] );
         exit( 1 );
     }
+    
+    // Retrieve the uid and the gid of the caller to set the filesystem
+    // permissions accordingly
+    mossofs_options->uid = getuid();
+    mossofs_options->gid = getgid();
 
     // Initialize and call the fuse handler
     {
