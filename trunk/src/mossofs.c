@@ -30,6 +30,7 @@
 
 #include "salloc.h"
 #include "mosso.h"
+#include "cache.h"
 
 /**
  * Option structure used to store and transport the initially read fuse options
@@ -83,6 +84,24 @@ static inline mossofs_filehandle_t* get_mossofs_filehandle( struct fuse_file_inf
 FILE* debuglog = NULL;
 
 /**
+ * Called whenever a structure stored in the cache needs to be freed
+ *
+ * This function decides based on the provided prefix which free function needs
+ * to be used, to clear the cached item successfully from memory.
+ */
+static void mossofs_cache_object_free( char* prefix, char* identifier, void* ptr ) 
+{
+    if ( strcmp( prefix, "meta" ) == 0 ) 
+    {
+        mosso_object_meta_free( (mosso_object_meta_t*)ptr );
+    }
+    else if( strcmp( prefix, "objects" ) == 0 ) 
+    {
+        mosso_object_free_all( (mosso_object_t*)ptr );
+    }
+}
+
+/**
  * Initialize the mosso filesystem
  *
  * This function establishes a connection to the mosso cloud service and
@@ -108,6 +127,9 @@ static void* mossofs_init( struct fuse_conn_info *conn )
         exit( 2 );
     }
 
+    // Initialize new cache with 5 minutes timeout
+    mosso->cache = cache_new( 300, mossofs_cache_object_free );
+
     // Return the connection to embed it into every fuse context.
     return mosso;
 }
@@ -120,7 +142,8 @@ static void* mossofs_init( struct fuse_conn_info *conn )
  */
 static void mossofs_destroy( void* mosso ) 
 {
-    mosso_cleanup( ( mosso_connection_t* )mosso );
+    // This one frees the allocated cache structure as well
+    mosso_cleanup( ( mosso_connection_t* )mosso );    
     curl_global_cleanup();
 
     // Free the options struct
@@ -152,12 +175,20 @@ static int mossofs_getattr( const char *path, struct stat *stbuf )
         return 0;
     }
     
-    // Try to retrieve meta information for the given filepath
-    if ( ( meta = mosso_get_object_meta( mosso, (char*)path ) ) == NULL ) 
+    // Try to retrieve the needed information from the cache
+    if ( ( meta = (mosso_object_meta_t*)cache_get_object( mosso->cache, "meta", path ) ) == NULL ) 
     {
-        // The requested object is not existant
-        return -ENOENT;
+        DEBUGLOG( "Not cached\n" );
+        // Try to retrieve meta information for the given filepath
+        if ( ( meta = mosso_get_object_meta( mosso, (char*)path ) ) == NULL ) 
+        {
+            // The requested object is not existant
+            return -ENOENT;
+        }
+        
+        cache_add_object( mosso->cache, "meta", path, meta );
     }
+
 
     // Set the correct file/dir type
     if ( meta->type == MOSSO_OBJECT_TYPE_OBJECT ) 
@@ -178,8 +209,6 @@ static int mossofs_getattr( const char *path, struct stat *stbuf )
         }
     }   
 
-    mosso_object_meta_free( meta );
-
     /* Everything okey */
     return 0;
 }
@@ -192,43 +221,34 @@ static int mossofs_readdir( const char *path, void *buf, fuse_fill_dir_t filler,
     MOSSO_CONNECTION( mosso );
     mosso_object_t* objects = NULL;
 
-    int id = rand();
-    int count = 0;
+    DEBUGLOG( "readdir: %s\n", path );
 
-    DEBUGLOG( "readdir(%d): %s\n", id, path );
-
-    if ( ( objects = mosso_list_objects( mosso, (char*)path, &count ) ) == NULL ) 
+    if ( ( objects = cache_get_object( mosso->cache, "objects", (char*)path ) ) == NULL ) 
     {
-        DEBUGLOG( "  path does not exist\n" );
-        return -ENOENT;
+        DEBUGLOG( "not cached\n" );
+        if ( ( objects = mosso_list_objects( mosso, (char*)path, NULL ) ) == NULL ) 
+        {
+            DEBUGLOG( "  path does not exist\n" );
+            return -ENOENT;
+        }
+
+        cache_add_object( mosso->cache, "objects", (char*)path, objects );
     }
 
-    DEBUGLOG( "  %d items retrieved\n", count );
-
-    DEBUGLOG( "  filling(%d): %s\n", id, "." );
+    DEBUGLOG( "  filling: %s\n", "." );
     filler( buf, ".", NULL, 0 );
-    DEBUGLOG( "  filling(%d): %s\n", id, ".." );
+    DEBUGLOG( "  filling: %s\n", ".." );
     filler( buf, "..", NULL, 0 );
 
     {
         mosso_object_t* cur = objects->root;
         while( cur != NULL ) 
         {
-            DEBUGLOG( "  filling(%d): %s\n", id, cur->name );
+            DEBUGLOG( "  filling: %s\n", cur->name );
             filler( buf, cur->name, NULL, 0 );
-            if ( cur->next != NULL ) 
-            {
-                DEBUGLOG( "Next object entry is available\n" );                
-            }
-            else 
-            {
-                DEBUGLOG( "Next object is NULL\n" );
-            }
             cur = cur->next;
         }
     }
-
-    mosso_object_free_all( objects );
 
     /* Everything okey */
     return 0;
@@ -281,6 +301,8 @@ static int mossofs_read( const char *path, char *buf, size_t size, off_t offset,
     uint64_t bytes_to_read = ( filehandle->meta->size < offset + size )
                            ? ( filehandle->meta->size - offset )
                            : ( size );
+
+    DEBUGLOG( "toread: %lld\n", bytes_to_read );
 
     DEBUGLOG( "read( %s, %ld, %ld )\n", path, (long)size, (long)offset );
 

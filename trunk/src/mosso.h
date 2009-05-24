@@ -29,6 +29,7 @@
 #include <time.h>
 
 #include "simple_curl.h"
+#include "cache.h"
 
 /**
  * Error codes accessible through mosso_get_error() in case something bad happened.
@@ -62,6 +63,7 @@ typedef struct
     char* storage_url;
     char* cdn_management_url;
     simple_curl_header_t* auth_headers;
+    cache_t* cache;
 } mosso_connection_t;
 
 

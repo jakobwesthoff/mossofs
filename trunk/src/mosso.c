@@ -137,6 +137,7 @@ mosso_connection_t* mosso_init( char* username, char* key )
     mosso_connection_t* mosso = snew( mosso_connection_t );
     mosso->username = strdup( username );
     mosso->key      = strdup( key );
+    mosso->cache    = NULL;
     mosso_authenticate( &mosso );
 
     return mosso;
@@ -1145,6 +1146,7 @@ void mosso_cleanup( mosso_connection_t* mosso )
         ( mosso->storage_url != NULL )        ? free( mosso->storage_url )                         : NULL;
         ( mosso->cdn_management_url != NULL ) ? free( mosso->cdn_management_url )                  : NULL;
         ( mosso->auth_headers != NULL )       ? simple_curl_header_free_all( mosso->auth_headers ) : NULL;
+        ( mosso->cache != NULL )              ? cache_free( mosso->cache )                         : NULL;
         free( mosso );
     }
 }
