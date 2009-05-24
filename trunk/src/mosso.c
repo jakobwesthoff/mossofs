@@ -1075,21 +1075,25 @@ mosso_object_meta_t* mosso_get_object_meta( mosso_connection_t* mosso, char* req
  */
 size_t mosso_read_object( mosso_connection_t* mosso, char* request_path, size_t size, char* buffer, off_t offset ) 
 {
+    // Just return 0 if a zero byte read request has been issued.
+    // This may happen if a zero byte length file is read.
+    if ( size == 0 ) 
+    {
+        return 0;
+    }
+
     char* response_body = NULL;
     long response_code  = 0;
     simple_curl_header_t* response_headers = NULL;
     simple_curl_header_t* request_headers  = simple_curl_header_copy( mosso->auth_headers );
     char* request_url = mosso_construct_request_url( mosso, request_path, MOSSO_PATH_TYPE_FILE, NULL );
 
-    printf( "Requesting: %s\n", request_url );
-    
     // Construct the needed range header
     {
         char* range = NULL;
         long  end   = offset + size - 1;
         asprintf( &range, "bytes=%ld-%ld", (long)offset, (long)end );
         simple_curl_header_add( request_headers, "Range", range );
-        printf( "range: %s\n", range );
         free( range );
     }
 
@@ -1106,7 +1110,6 @@ size_t mosso_read_object( mosso_connection_t* mosso, char* request_path, size_t 
                 default:
                     set_error( response_code, "Statuscode: %ld", response_code );
         }
-        printf( "error: %ld, %s\n", response_code, response_body );
         free( request_url );
         simple_curl_header_free_all( request_headers );
         ( response_headers != NULL ) ? simple_curl_header_free_all( response_headers ) : NULL;
@@ -1121,7 +1124,6 @@ size_t mosso_read_object( mosso_connection_t* mosso, char* request_path, size_t 
     {
         uint64_t received_bytes = atoll( simple_curl_header_get_by_key( response_headers, "Content-Length" ) );
         uint64_t bytes_to_copy  = ( received_bytes > size ) ? size : received_bytes;
-        printf( "copy %llu from %llu bytes\n", bytes_to_copy, received_bytes );
         memcpy( buffer, response_body, bytes_to_copy );
         simple_curl_header_free_all( response_headers );
         free( response_body );
