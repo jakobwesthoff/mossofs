@@ -1,0 +1,123 @@
+=======
+MossoFS
+=======
+
+Scope
+=====
+
+This document provides general information about the MossoFS FUSE module. It
+presents information about the general idea behind MossoFS and possible usage
+scenarios. Furthermore application and usage examples are given.
+
+This document is not intended to provide any kind of documentation of the
+inner workings or design principles used during the development of this
+filesystem.
+
+What is MossoFS?
+================
+
+MossoFS is a FUSE based filesystem which allows easy access to Cloud Files
+a service provided by mosso.
+
+What is FUSE?
+-------------
+
+FUSE stands for "Filesystem in USErspace". It is a linux kernel filesystem
+driver, which acts as some kind of proxy between an arbitrary userspace
+program using the fuse library and the linux kernel filesystem architecture.
+Therefore it allows the development of filesystems which are fully running in
+userspace instead of kernelspace. 
+
+**TODO: http://en.wikipedia.org/wiki/File:FUSE_structure.svg**
+
+The FUSE website gives further information on this topic.
+
+Who is mosso?
+-------------
+
+Mosso is a service belonging to the established Rackspace company. It provides
+different kinds of cloud computing resources. One of them is Cloud Files,
+which is the service MossoFS has been written for.
+
+What is Cloud Files?
+--------------------
+
+Cloud Files is a service provided by mosso, which allows the user to store
+arbitrary data in a cloud. The user pays for the amount of data stored as well
+as the amount of traffic used. This storage system is great to store backups
+for example. (**TODO: kores blogpost verlinken**)
+
+Mosso provides a comprehensive REST based api to interact with the service, to
+store, manage and retrieve files. To ease the use of data retrieval once it
+has been stored in the cloud I started the development of MossoFS. It is a
+simple FUSE based filesystem application which maps transparently the contents
+and structure of your Mosso Files storage to a linux filesystem.
+
+Supported Features
+==================
+
+MossoFS currently supports only reading of the Mosso Files storage.
+Write-support is planned for a future version. The lack of write support
+includes any kind of modification of data stored. Therefore the filesystem can
+only be mounted read-only.
+
+Currently supported features:
+
+- Support of "Containers"
+- Support of virtual directories as described in the Mosso Files documentation
+- Full read support of stored files.
+- Rudimental caching of retrieved metadata and container listings
+
+Planned features for future releases:
+
+- Write support for files
+- Creation/Deletion support for containers and virtual directories
+- Support for extended metadata to store and retrieve informations like
+  fileowner and filegroup
+- More inteligent caching of metadata and directory listings
+- Inteligent caching of retrieved files
+
+Install from source
+===================
+
+Needed prerequisites
+--------------------
+
+- FUSE library version 26 or later
+- cURL library version **TODO: insert version** or later
+- CMake version **TODO: insert version** or later
+- gcc C compiler
+
+Steps to compile and install
+----------------------------
+
+Download the source code of the current release::
+	
+	wget **TODO: insert URL**
+
+Decompress the archive::
+
+	tar xvzf mossofs-latest.tar.gz
+
+Create a build directory and run cmake to configure::
+
+	cd mossofs-*
+	mkdir build
+	cd build
+	cmake ../
+
+Compile the source and link the executable::
+
+	make
+
+Install the executable to */usr/bin/mossofs*::
+
+	make install
+
+After finishing this easy steps you can call the mossofs executable by
+issueing *mossofs* in your terminal.
+
+Usage Example
+=============
+
+
