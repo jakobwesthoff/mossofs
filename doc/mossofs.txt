@@ -30,8 +30,8 @@ completely in userspace instead of kernelspace.
 
 .. image:: /data/projects/mossofs/FUSE_structure.png
    :alt: Structure of the FUSE module. (This picture has been derived from
-   FUSE_Structure.svg found on the wikimedia commons. It has originally been
-   created by User:Sven and is licensed under CC-by-sa 3.0)
+   		 FUSE_Structure.svg found on the wikimedia commons. It has originally been
+   		 created by User:Sven and is licensed under CC-by-sa 3.0)
    :align: center
 
 The FUSE_ website gives further information on this topic.
@@ -39,7 +39,7 @@ The FUSE_ website gives further information on this topic.
 Who is mosso?
 -------------
 
-Mosso_ is a service belonging to the established Rackspace_ company. It
+Mosso_ is a service belonging to the well established Rackspace_ company. It
 provides different kinds of cloud computing resources. One of them is `Cloud
 Files`_, which is the service MossoFS has been written for.
 
@@ -50,7 +50,7 @@ What is Cloud Files?
 arbitrary data in a cloud. The user pays for the amount of data stored as well
 as the amount of traffic used.
 
-Rackspace__ describes its service as follows::
+Rackspace_ describes its service as follows::
 
     Cloud Files is reliable, scalable and affordable web-based storage for
     backing up and archiving all your static content.
@@ -61,7 +61,7 @@ modified version of his scripts by myself and it works like a charm.
 
 __ http://kore-nordmann.de/blog/0086_backup_svn_to_mosso_cloud_file.html
 
-Mosso provides a comprehensive REST based api to interact with the service, to
+Mosso provides a comprehensive REST_ based api to interact with the service, to
 store, manage and retrieve files.
 
 To ease the use of data retrieval once it has been stored in the cloud I
@@ -194,3 +194,5 @@ subversion repository::
 .. _Rackspace: http://www.rackspace.com/index.php
 .. _`Cloud Files`: http://www.mosso.com/cloudfiles.jsp
 .. _`Kore Nordmann`: http://kore-nordmann.de
+.. _REST: http://en.wikipedia.org/wiki/REST
+
