@@ -28,7 +28,11 @@ program, using the fuse library, and the linux kernel filesystem architecture.
 Therefore it allows the development of filesystems which are running
 completely in userspace instead of kernelspace. 
 
-**TODO: http://en.wikipedia.org/wiki/File:FUSE_structure.svg**
+.. image:: /data/projects/mossofs/FUSE_structure.png
+   :alt: Structure of the FUSE module. (This picture has been derived from
+   FUSE_Structure.svg found on the wikimedia commons. It has originally been
+   created by User:Sven and is licensed under CC-by-sa 3.0)
+   :align: center
 
 The FUSE_ website gives further information on this topic.
 
@@ -46,10 +50,10 @@ What is Cloud Files?
 arbitrary data in a cloud. The user pays for the amount of data stored as well
 as the amount of traffic used.
 
+Rackspace__ describes its service as follows::
+
     Cloud Files is reliable, scalable and affordable web-based storage for
     backing up and archiving all your static content.
-
-    -- Mosso
 
 `Kore Nordmann`_ published an interesting `blog post`__ on howto backup svn
 repositories on a as needed basis to the mosso cloud. I am using a slightly
@@ -187,6 +191,6 @@ subversion repository::
 
 .. _FUSE: http://fuse.sourceforge.net
 .. _mosso: http://www.mosso.com
-.. _Mosso: http://www.mosso.com
+.. _Rackspace: http://www.rackspace.com/index.php
 .. _`Cloud Files`: http://www.mosso.com/cloudfiles.jsp
 .. _`Kore Nordmann`: http://kore-nordmann.de

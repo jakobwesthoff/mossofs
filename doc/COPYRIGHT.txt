@@ -1,0 +1,5 @@
+The files FUSE_structure.svg and FUSE_structure.png are derived from the work
+of the wikimedia commons user Sven
+(http://commons.wikimedia.org/wiki/User:Sven). It is licensed under Creative
+Commons Attribution ShareAlike 3.0
+(http://creativecommons.org/licenses/by-sa/3.0/).
