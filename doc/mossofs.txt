@@ -22,9 +22,9 @@ a service provided by mosso_.
 What is FUSE?
 -------------
 
-FUSE_ stands for "Filesystem in USErspace". It is a linux kernel filesystem
+FUSE_ stands for "Filesystem in USErspace". It is a Linux kernel filesystem
 driver, which acts as some kind of proxy between an arbitrary userspace
-program, using the fuse library, and the linux kernel filesystem architecture.
+program, using the fuse library, and the Linux kernel filesystem architecture.
 Therefore it allows the development of filesystems which are running
 completely in userspace instead of kernelspace. 
 
@@ -33,7 +33,7 @@ completely in userspace instead of kernelspace.
    :align: center
 
 The picture above has been derived from FUSE_Structure.svg__ found on the
-wikimedia commons. It has originally been created by `User:Sven`__ and is
+Wikipedia commons. It has originally been created by `User:Sven`__ and is
 licensed under `CC-by-sa 3.0`__.
 
 __ http://en.wikipedia.org/wiki/File:FUSE_structure.svg
@@ -71,12 +71,12 @@ store, manage and retrieve files.
 To ease the use of data retrieval once it has been stored in the cloud I
 started the development of MossoFS. It is a simple FUSE_ based filesystem
 application which maps the contents and structure of your `Cloud Files`_
-storage to a linux filesystem in a fully transparent way.
+storage to a Linux filesystem in a fully transparent way.
 
 Supported Features
 ==================
 
-MossoFS is a readonly filesystem at the moment. It supports reading of your
+MossoFS is a read-only filesystem at the moment. It supports reading of your
 `Cloud Files`_ storage. Write-support is planned to be added in a future
 release.
 
@@ -97,7 +97,7 @@ Planned features for future releases
 - Creation/Deletion support for containers and virtual directories
 - Support for extended metadata to store and retrieve informations like
   fileowner and filegroup
-- Inteligent caching of retrieved files
+- Intelligent caching of retrieved files
 
 Known Shortcomings
 ------------------
@@ -105,7 +105,7 @@ Known Shortcomings
 Currently read operations on files are not cached at all. The exact amount of
 data requested by each read syscall is retrieved from the cloud and returned
 to the calling function. This implies the overhead of a full HTTP request
-everytime a chunk of data is read. If these chunks are quite small the
+every time a chunk of data is read. If these chunks are quite small the
 performance impact might be huge. 
 
 This development release does not include proper caching strategies for file
@@ -149,7 +149,7 @@ Install the executable to */usr/bin/mossofs*::
 	make install
 
 After finishing this easy steps you can call the mossofs executable by
-issueing *mossofs* in your terminal.
+issuing *mossofs* in your terminal.
 
 Usage Example
 =============
