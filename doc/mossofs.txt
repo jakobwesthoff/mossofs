@@ -29,12 +29,16 @@ Therefore it allows the development of filesystems which are running
 completely in userspace instead of kernelspace. 
 
 .. image:: /data/projects/mossofs/FUSE_structure.png
-   :alt: Structure of the FUSE module. (This picture has been derived from
-   		 FUSE_Structure.svg found on the wikimedia commons. It has originally been
-   		 created by User:Sven and is licensed under CC-by-sa 3.0)
+   :alt: Structure of the FUSE module.
    :align: center
 
-The FUSE_ website gives further information on this topic.
+The picture above has been derived from FUSE_Structure.svg__ found on the
+wikimedia commons. It has originally been created by `User:Sven`__ and is
+licensed under `CC-by-sa 3.0`__.
+
+__ http://en.wikipedia.org/wiki/File:FUSE_structure.svg
+__ http://commons.wikimedia.org/wiki/User:Sven
+__ http://creativecommons.org/licenses/by-sa/3.0/
 
 Who is mosso?
 -------------
