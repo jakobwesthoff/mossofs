@@ -350,7 +350,7 @@ static int mossofs_release( const char* path, struct fuse_file_info* fi )
  */
 static void show_usage( char* executable )
 {
-    printf( "Mossofs FUSE module DEVELOPMENT SNAPSHOT r52\n" );
+    printf( "Mossofs FUSE module DEVELOPMENT SNAPSHOT r59\n" );
     printf( "Jakob Westhoff <jakob@westhoffswelt.de>\n\n" );
     printf( "Usage:\n" );
     printf( "%s mosso_username@mosso_apikey <MOUNTPOINT>\n\n", executable );
